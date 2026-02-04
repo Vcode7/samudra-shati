@@ -12,6 +12,10 @@ import { RecentAlertsScreen } from './src/screens/RecentAlertsScreen';
 import { DisasterDetailsScreen } from './src/screens/DisasterDetailsScreen';
 import { VerificationScreen } from './src/screens/VerificationScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { AlertsMapScreen } from './src/screens/AlertsMapScreen';
+import { AuthorityLoginScreen } from './src/screens/AuthorityLoginScreen';
+import { AuthorityDashboardScreen } from './src/screens/AuthorityDashboardScreen';
+import { EquipmentManagementScreen } from './src/screens/EquipmentManagementScreen';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -83,6 +87,10 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen name="DisasterDetails" component={DisasterDetailsScreen} />
             <Stack.Screen name="Verification" component={VerificationScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen name="AlertsMap" component={AlertsMapScreen} />
+            <Stack.Screen name="AuthorityLogin" component={AuthorityLoginScreen} />
+            <Stack.Screen name="AuthorityDashboard" component={AuthorityDashboardScreen} />
+            <Stack.Screen name="EquipmentManagement" component={EquipmentManagementScreen} />
           </>
         )}
       </Stack.Navigator>

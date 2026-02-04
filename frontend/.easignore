@@ -1,0 +1,13 @@
+node_modules
+android/.gradle
+android/build
+android/app/build
+.expo
+.expo-shared
+.git
+.gitignore
+backend
+venv
+.venv
+__pycache__
+*.log

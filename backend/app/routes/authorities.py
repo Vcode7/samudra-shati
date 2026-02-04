@@ -47,7 +47,7 @@ async def authority_login(
     
     # Create access token
     access_token = create_access_token(
-        data={"sub": authority.id, "type": "authority"}
+        data={"sub": str(authority.id), "type": "authority"}
     )
     
     return Token(

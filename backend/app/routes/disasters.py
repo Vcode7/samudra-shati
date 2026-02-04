@@ -93,7 +93,7 @@ async def create_disaster_report(
     nearby_users = AlertService.get_nearby_users(
         latitude=latitude,
         longitude=longitude,
-        radius_km=10.0,  # 10km radius
+        radius_km=50.0,  # 10km radius
         db=db,
         exclude_user_id=current_user.id
     )
@@ -150,8 +150,7 @@ async def create_disaster_report(
 
 @router.get("/active", response_model=List[DisasterReportResponse])
 async def get_active_disasters(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     Get active disaster reports (pending or verified)
@@ -167,8 +166,7 @@ async def get_active_disasters(
 async def get_recent_disasters(
     skip: int = 0,
     limit: int = 20,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     Get recent disaster reports with pagination
@@ -183,8 +181,7 @@ async def get_recent_disasters(
 @router.get("/{disaster_id}", response_model=DisasterReportResponse)
 async def get_disaster_details(
     disaster_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     Get specific disaster report details

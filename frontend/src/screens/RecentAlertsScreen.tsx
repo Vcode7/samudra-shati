@@ -112,7 +112,7 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
                 <Text style={styles.detailText}>
                     📏 {item.distance_km < 1
                         ? `${Math.round(item.distance_km * 1000)}m away`
-                        : `${item.distance_km.toFixed(1)}km away`}
+                        : `${item.distance_km?.toFixed(1)}km away`}
                 </Text>
                 <Text style={styles.detailText}>
                     ✅ {item.verification_count} verification{item.verification_count !== 1 ? 's' : ''}

@@ -15,8 +15,8 @@ Notifications.setNotificationHandler({
             const messages = data.messages || {};
 
             await voiceService.speakDualLanguage(
-                notification.request.content.title,
-                notification.request.content.body,
+                notification.request.content.title || 'Alert',
+                notification.request.content.body || '',
                 messages
             );
 
@@ -27,6 +27,8 @@ Notifications.setNotificationHandler({
             shouldShowAlert: true,
             shouldPlaySound: true,
             shouldSetBadge: true,
+            shouldShowBanner: true,
+            shouldShowList: true,
             priority: Notifications.AndroidNotificationPriority.MAX,
         };
     },
@@ -53,12 +55,7 @@ export const notificationService = {
                 return null;
             }
 
-            const tokenData = await Notifications.getExpoPushTokenAsync({
-                projectId: Constants.expoConfig?.extra?.eas?.projectId,
-            });
-
-            console.log('Expo Push Token:', tokenData.data);
-
+            // Set up Android notification channel first
             if (Platform.OS === 'android') {
                 await Notifications.setNotificationChannelAsync('disaster-alerts', {
                     name: 'Disaster Alerts',
@@ -70,9 +67,28 @@ export const notificationService = {
                 });
             }
 
-            return tokenData.data;
+            // Try to get push token - this may fail if Firebase is not configured
+            try {
+                const tokenData = await Notifications.getExpoPushTokenAsync({
+                    projectId: Constants.expoConfig?.extra?.eas?.projectId,
+                });
+                console.log('Expo Push Token:', tokenData.data);
+                return tokenData.data;
+            } catch (tokenError: any) {
+                // Firebase not configured - log and continue without push token
+                // Local notifications will still work
+                console.warn(
+                    'Push token registration failed. Firebase may not be configured.',
+                    'Local notifications will still work.',
+                    tokenError.message
+                );
+
+                // Return a placeholder token for development
+                // The app will still function with local notifications
+                return 'local-notifications-only';
+            }
         } catch (error) {
-            console.error('Error registering for push notifications:', error);
+            console.error('Error setting up notifications:', error);
             return null;
         }
     },

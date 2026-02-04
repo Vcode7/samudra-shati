@@ -100,9 +100,19 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                         <Text style={styles.actionButtonText}>{t('settings')}</Text>
                     </TouchableOpacity>
 
+                    <TouchableOpacity style={styles.actionButton} onPress={() => { vibrationService.light(); navigation.navigate('AlertsMap'); }}>
+                        <Text style={styles.actionButtonIcon}>🗺️</Text>
+                        <Text style={styles.actionButtonText}>View Map</Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity style={styles.actionButton} onPress={handleTestAlert}>
                         <Text style={styles.actionButtonIcon}>🔔</Text>
                         <Text style={styles.actionButtonText}>{t('testAlert')}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#1a1a2e', borderColor: '#1a1a2e' }]} onPress={() => { vibrationService.light(); navigation.navigate('AuthorityLogin'); }}>
+                        <Text style={styles.actionButtonIcon}>🏛️</Text>
+                        <Text style={[styles.actionButtonText, { color: '#fff' }]}>Authority Login</Text>
                     </TouchableOpacity>
                 </View>
 

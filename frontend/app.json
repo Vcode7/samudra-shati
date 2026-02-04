@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.samudarshati.app"
+      "bundleIdentifier": "com.samudarshati.app",
+      "config": {
+        "googleMapsApiKey": "AIzaSyBmWNgJyJ8OvvvyMQh62ouyCoiS0gqRLaQ"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,14 +25,22 @@
         "backgroundColor": "#0066cc"
       },
       "package": "com.samudarshati.app",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "VIBRATE"
-      ]
+        "VIBRATE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBmWNgJyJ8OvvvyMQh62ouyCoiS0gqRLaQ"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,7 +52,24 @@
           "icon": "./assets/notification-icon.png",
           "color": "#0066cc"
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Samudar Shati to use your location to show nearby disasters."
+        }
+      ],
+      [
+        "./plugins/withGoogleMapsApiKey.js",
+        {
+          "apiKey": "AIzaSyBmWNgJyJ8OvvvyMQh62ouyCoiS0gqRLaQ"
+        }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "61d9d855-a65d-4dbc-afd4-4f7c69196e22"
+      }
+    }
   }
 }
