@@ -13,7 +13,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
-import api from '../services/api';
+import { apiClient } from '../services/api';
 
 interface DisasterSummary {
     id: number;
@@ -48,6 +48,7 @@ export const AuthorityDashboardScreen: React.FC<{ navigation: any }> = ({ naviga
 
     const loadDashboardData = async () => {
         try {
+            const api = await apiClient();
             const [infoRes, disastersRes] = await Promise.all([
                 api.get('/api/authorities/me'),
                 api.get('/api/authorities/disasters'),
@@ -69,6 +70,8 @@ export const AuthorityDashboardScreen: React.FC<{ navigation: any }> = ({ naviga
 
     const handleVerifyDisaster = async (disasterId: number) => {
         try {
+            const api = await apiClient();
+
             await api.post(`/api/disasters/${disasterId}/authority-verify`);
             vibrationService.success();
             Alert.alert('Success', 'Disaster verified successfully');
@@ -90,6 +93,8 @@ export const AuthorityDashboardScreen: React.FC<{ navigation: any }> = ({ naviga
                     style: 'destructive',
                     onPress: async () => {
                         try {
+                            const api = await apiClient();
+
                             await api.post(`/api/disasters/${disasterId}/broadcast`);
                             vibrationService.success();
                             Alert.alert('Success', 'Alert broadcasted to affected areas');

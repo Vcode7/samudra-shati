@@ -15,7 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLanguage } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
 import { locationService } from '../services/locationService';
-import api from '../services/api';
+import {apiClient} from '../services/api';
 
 export const UploadDisasterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const { t } = useLanguage();
@@ -98,7 +98,7 @@ export const UploadDisasterScreen: React.FC<{ navigation: any }> = ({ navigation
         setLoading(true);
         try {
             const formData = new FormData();
-
+            const api = await apiClient();
             // Add image
             const filename = imageUri.split('/').pop() || 'disaster.jpg';
             const match = /\.(\w+)$/.exec(filename);

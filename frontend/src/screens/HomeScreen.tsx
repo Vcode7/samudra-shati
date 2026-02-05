@@ -5,7 +5,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
 import { voiceService } from '../services/voiceService';
 import { notificationService } from '../services/notificationService';
-import api from '../services/api';
+import { apiClient } from '../services/api';
 
 interface DisasterAlert {
     id: number;
@@ -28,6 +28,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
     const loadActiveAlerts = async () => {
         try {
+            const api = await apiClient();
             const response = await api.get('/api/disasters/active');
             setActiveAlerts(response.data);
         } catch (error) {

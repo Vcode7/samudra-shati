@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { useLanguage } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
-import api, { API_BASE_URL } from '../services/api';
+import {apiClient, getAPIBaseURL } from '../services/api';
+
 
 interface DisasterDetails {
     id: number;
@@ -28,18 +29,26 @@ export const VerificationScreen: React.FC<{ route: any; navigation: any }> = ({
     route,
     navigation,
 }) => {
+
     const { t } = useLanguage();
     const { disasterId } = route.params;
     const [disaster, setDisaster] = useState<DisasterDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [API_BASE_URL, setAPI_BASE_URL] = useState<string | null>(null);
 
     useEffect(() => {
+        const loadApiBaseUrl = async () => {
+            const api = await getAPIBaseURL();
+            setAPI_BASE_URL(api);
+        }
+        loadApiBaseUrl();
         loadDisasterDetails();
     }, []);
 
     const loadDisasterDetails = async () => {
         try {
+            const api = await apiClient();
             const response = await api.get(`/api/disasters/${disasterId}`);
             setDisaster(response.data);
         } catch (error) {
@@ -52,7 +61,8 @@ export const VerificationScreen: React.FC<{ route: any; navigation: any }> = ({
 
     const handleVerify = async (isConfirmed: boolean) => {
         setSubmitting(true);
-        try {
+        try {   
+            const api = await apiClient();
             await api.post(`/api/disasters/${disasterId}/verify`, {
                 is_confirmed: isConfirmed,
             });

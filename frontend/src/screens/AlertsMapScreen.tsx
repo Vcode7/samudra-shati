@@ -13,7 +13,7 @@ import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useLanguage } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
 import { locationService } from '../services/locationService';
-import api from '../services/api';
+import { apiClient } from '../services/api';
 
 interface DisasterMarker {
     id: number;
@@ -63,6 +63,7 @@ export const AlertsMapScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
     const loadDisasters = async () => {
         try {
+            const api = await apiClient();
             const response = await api.get('/api/disasters/recent?page=1&page_size=100');
             setDisasters(response.data);
         } catch (error) {

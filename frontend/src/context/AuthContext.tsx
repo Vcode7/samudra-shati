@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from '../services/api';
+import { apiClient } from '../services/api';
 
 type UserType = 'user' | 'authority' | null;
 
@@ -45,6 +45,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             ]);
 
             if (storedToken && storedUserType) {
+                const api = await apiClient();
                 // 🔥 Attach token BEFORE API calls
                 api.defaults.headers.common.Authorization = `Bearer ${storedToken}`;
 
@@ -65,6 +66,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const fetchUserProfile = async (type: UserType) => {
         try {
             const endpoint = type === 'authority' ? '/api/authorities/me' : '/api/users/me';
+            const api = await apiClient();
             const response = await api.get(endpoint);
             setUser(response.data);
         } catch (error) {
@@ -75,6 +77,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const login = async (newToken: string, newUserType: UserType) => {
         try {
+            const api = await apiClient();
             await AsyncStorage.setItem('auth_token', newToken);
             await AsyncStorage.setItem('user_type', newUserType || 'user');
             // 2️⃣ Attach token to axios

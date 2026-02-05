@@ -18,6 +18,7 @@ import { AuthorityDashboardScreen } from './src/screens/AuthorityDashboardScreen
 import { EquipmentManagementScreen } from './src/screens/EquipmentManagementScreen';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { initApi } from './src/services/api';
 
 const Stack = createStackNavigator();
 
@@ -26,11 +27,22 @@ const AppNavigator: React.FC = () => {
   const { primaryLanguage, loading: langLoading } = useLanguage();
   const [languageSelected, setLanguageSelected] = useState(false);
   const [checkingLanguage, setCheckingLanguage] = useState(true);
+  const [apiReady, setApiReady] = useState(false);
 
-  useEffect(() => {
-    checkLanguageSelection();
-    setupNotifications();
-  }, []);
+useEffect(() => {
+  (async () => {
+    try {
+      await initApi();
+      await checkLanguageSelection();
+      await setupNotifications();
+      setApiReady(true);
+    } catch (e) {
+      console.error('App init failed:', e);
+    }
+  })();
+}, []);
+
+
 
   const checkLanguageSelection = async () => {
     try {
@@ -56,7 +68,7 @@ const AppNavigator: React.FC = () => {
     });
   };
 
-  if (authLoading || langLoading || checkingLanguage) {
+  if (authLoading || langLoading || checkingLanguage || !apiReady) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#0066cc" />

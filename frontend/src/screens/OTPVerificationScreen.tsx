@@ -3,10 +3,11 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Aler
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
-import api from '../services/api';
+import { apiClient } from '../services/api';
 import { notificationService } from '../services/notificationService';
 
 export const OTPVerificationScreen: React.FC = () => {
+    
     const { login } = useAuth();
     const { t } = useLanguage();
     const [phoneNumber, setPhoneNumber] = useState('');
@@ -15,6 +16,7 @@ export const OTPVerificationScreen: React.FC = () => {
     const [loading, setLoading] = useState(false);
 
     const handleRequestOTP = async () => {
+        const api = await apiClient();
         if (phoneNumber.length < 10) {
             Alert.alert(t('error'), 'Please enter a valid phone number');
             vibrationService.error();
@@ -38,6 +40,7 @@ export const OTPVerificationScreen: React.FC = () => {
     };
 
     const handleVerifyOTP = async () => {
+        
         if (otp.length !== 6) {
             Alert.alert(t('error'), 'Please enter 6-digit OTP');
             vibrationService.error();
@@ -46,7 +49,9 @@ export const OTPVerificationScreen: React.FC = () => {
 
         setLoading(true);
         try {
+            const api = await apiClient();
             const pushToken = await notificationService.registerForPushNotifications();
+            console.log('Push token:', pushToken);
             const response = await api.post('/api/users/verify-otp', {
                 phone_number: phoneNumber,
                 otp_code: otp,

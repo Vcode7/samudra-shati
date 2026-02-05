@@ -15,7 +15,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
-import api from '../services/api';
+import { apiClient } from '../services/api';
 
 export const AuthorityLoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const { login } = useAuth();
@@ -33,6 +33,7 @@ export const AuthorityLoginScreen: React.FC<{ navigation: any }> = ({ navigation
 
         setLoading(true);
         try {
+            const api = await apiClient();
             const response = await api.post('/api/authorities/login', {
                 username,
                 password,

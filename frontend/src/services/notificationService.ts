@@ -69,9 +69,11 @@ export const notificationService = {
 
             // Try to get push token - this may fail if Firebase is not configured
             try {
-                const tokenData = await Notifications.getExpoPushTokenAsync({
-                    projectId: Constants.expoConfig?.extra?.eas?.projectId,
-                });
+                // const tokenData = await Notifications.getExpoPushTokenAsync({
+                //     projectId: Constants.expoConfig?.extra?.eas?.projectId,
+                // });
+                const tokenData = await Notifications.getExpoPushTokenAsync();
+
                 console.log('Expo Push Token:', tokenData.data);
                 return tokenData.data;
             } catch (tokenError: any) {

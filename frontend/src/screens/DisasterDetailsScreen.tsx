@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { useLanguage } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
-import api, { API_BASE_URL } from '../services/api';
+import {apiClient, getAPIBaseURL } from '../services/api';
+
 
 interface DisasterDetails {
     id: number;
@@ -33,16 +34,24 @@ export const DisasterDetailsScreen: React.FC<{ route: any; navigation: any }> = 
     route,
     navigation,
 }) => {
+    
     const { t } = useLanguage();
     const { disasterId } = route.params;
     const [disaster, setDisaster] = useState<DisasterDetails | null>(null);
     const [loading, setLoading] = useState(true);
+    const [API_BASE_URL, setAPI_BASE_URL] = useState<string | null>(null);
 
-    useEffect(() => {
+    useEffect(()=>{
+        const loadApiBaseUrl = async () => {
+            const api = await getAPIBaseURL();
+            setAPI_BASE_URL(api);
+        }
+        loadApiBaseUrl();
         loadDisasterDetails();
     }, []);
 
     const loadDisasterDetails = async () => {
+        const api = await apiClient();
         try {
             const response = await api.get(`/api/disasters/${disasterId}`);
             setDisaster(response.data);

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useLanguage } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
-import api from '../services/api';
+import { apiClient } from '../services/api';
 
 interface Equipment {
     id: number;
@@ -37,6 +37,7 @@ export const EquipmentManagementScreen: React.FC<{ navigation: any }> = ({ navig
 
     const loadEquipment = async () => {
         try {
+            const api = await apiClient();
             const response = await api.get('/api/authorities/equipment');
             setEquipment(response.data);
         } catch (error) {
@@ -72,6 +73,7 @@ export const EquipmentManagementScreen: React.FC<{ navigation: any }> = ({ navig
         }
 
         try {
+            const api = await apiClient();
             if (editingEquipment) {
                 await api.put(`/api/authorities/equipment/${editingEquipment.id}`, {
                     name: formData.name,

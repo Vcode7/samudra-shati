@@ -97,7 +97,8 @@ async def create_disaster_report(
         db=db,
         exclude_user_id=current_user.id
     )
-    
+    print("NEARBY USERS:", [u.id for u in nearby_users])
+    print("TOKENS:", [u.expo_push_token for u in nearby_users])
     if nearby_users:
         # Prepare multi-language messages
         messages = AlertService.prepare_multilingual_message(
