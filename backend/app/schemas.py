@@ -223,3 +223,86 @@ class LocationData(BaseModel):
     latitude: float
     longitude: float
     accuracy: Optional[float] = None
+
+
+# Device Schemas
+class DeviceRegister(BaseModel):
+    """Schema for device registration (no auth required)"""
+    device_id: str
+    expo_push_token: str
+    platform: Optional[str] = None
+    app_install_id: Optional[str] = None
+
+
+class DeviceLinkUser(BaseModel):
+    """Schema for linking device to user after login"""
+    device_id: str
+
+
+class DeviceResponse(BaseModel):
+    id: int
+    device_id: str
+    expo_push_token: str
+    platform: Optional[str]
+    user_id: Optional[int]
+    is_active: bool
+    last_seen: datetime
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class DeviceStatsResponse(BaseModel):
+    """Statistics about registered devices"""
+    total_devices: int
+    active_devices: int
+    devices_with_users: int
+    android_devices: int
+    ios_devices: int
+
+
+# External Alert Schemas (from social crawler)
+class ExternalSourceEnum(str, Enum):
+    TWITTER = "twitter"
+    YOUTUBE = "youtube"
+    NEWS_RSS = "news_rss"
+    TELEGRAM = "telegram"
+
+
+class ExternalAlertCreate(BaseModel):
+    """Schema for submitting external alerts from social crawler"""
+    source: ExternalSourceEnum
+    source_id: Optional[str] = None
+    source_url: Optional[str] = None
+    text_content: Optional[str] = None
+    media_url: Optional[str] = None
+    location_text: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    confidence_score: float = 0.5
+    keywords_matched: Optional[List[str]] = None
+
+
+class ExternalAlertResponse(BaseModel):
+    id: int
+    source: str
+    text_content: Optional[str]
+    location_text: Optional[str]
+    confidence_score: float
+    is_valid: bool
+    detected_at: datetime
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Test Broadcast Schema
+class TestBroadcastResponse(BaseModel):
+    """Response from test broadcast"""
+    success: bool
+    total_tokens: int
+    delivered_count: int
+    failed_count: int
+    message: Optional[str] = None

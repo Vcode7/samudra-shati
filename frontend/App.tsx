@@ -29,18 +29,18 @@ const AppNavigator: React.FC = () => {
   const [checkingLanguage, setCheckingLanguage] = useState(true);
   const [apiReady, setApiReady] = useState(false);
 
-useEffect(() => {
-  (async () => {
-    try {
-      await initApi();
-      await checkLanguageSelection();
-      await setupNotifications();
-      setApiReady(true);
-    } catch (e) {
-      console.error('App init failed:', e);
-    }
-  })();
-}, []);
+  useEffect(() => {
+    (async () => {
+      try {
+        await initApi();
+        await checkLanguageSelection();
+        await setupNotifications();
+        setApiReady(true);
+      } catch (e) {
+        console.error('App init failed:', e);
+      }
+    })();
+  }, []);
 
 
 
@@ -56,16 +56,27 @@ useEffect(() => {
   };
 
   const setupNotifications = async () => {
-    const token = await notificationService.registerForPushNotifications();
-    console.log('Push token:', token);
+    try {
+      // First, register for push notifications (get permission + token)
+      const token = await notificationService.registerForPushNotifications();
+      console.log('Push token:', token);
 
-    notificationService.addNotificationReceivedListener((notification) => {
-      console.log('Notification received:', notification);
-    });
+      // Register device with backend (no auth required)
+      // This enables receiving alerts even before user login
+      const deviceRegistered = await notificationService.registerDevice();
+      console.log('Device registered:', deviceRegistered);
 
-    notificationService.addNotificationResponseListener((response) => {
-      console.log('Notification tapped:', response);
-    });
+      // Set up notification listeners
+      notificationService.addNotificationReceivedListener((notification) => {
+        console.log('Notification received:', notification);
+      });
+
+      notificationService.addNotificationResponseListener((response) => {
+        console.log('Notification tapped:', response);
+      });
+    } catch (error) {
+      console.error('Notification setup failed:', error);
+    }
   };
 
   if (authLoading || langLoading || checkingLanguage || !apiReady) {

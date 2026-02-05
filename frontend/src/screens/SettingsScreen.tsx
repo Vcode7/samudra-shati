@@ -7,12 +7,15 @@ import {
     SafeAreaView,
     ScrollView,
     Alert,
+    Platform,
+    Linking,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage, LanguageCode } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
 import { voiceService } from '../services/voiceService';
 import { notificationService } from '../services/notificationService';
+import { apiClient } from '../services/api';
 
 const LANGUAGES = [
     { code: 'en' as LanguageCode, name: 'English', nativeName: 'English' },
@@ -24,6 +27,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     const { user, logout } = useAuth();
     const { t, primaryLanguage, secondaryLanguage, setPrimaryLanguage, setSecondaryLanguage } = useLanguage();
     const [showLanguageSelector, setShowLanguageSelector] = useState(false);
+    const [broadcastLoading, setBroadcastLoading] = useState(false);
 
     const handleTestAlert = async () => {
         vibrationService.emergencyPattern();
@@ -42,6 +46,43 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             { type: 'test' }
         );
         Alert.alert(t('success'), 'Test alert completed! Check if voice and vibration worked.');
+    };
+
+    const handleTestBroadcast = async () => {
+        Alert.alert(
+            '📢 Test Broadcast',
+            'This will send a test notification to ALL registered devices. Continue?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Send to All',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setBroadcastLoading(true);
+                        try {
+                            const api = await apiClient();
+                            const response = await api.post('/api/admin/test-broadcast');
+                            const data = response.data;
+
+                            Alert.alert(
+                                '✅ Broadcast Sent',
+                                `Total devices: ${data.total_tokens}\nDelivered: ${data.delivered_count}\nFailed: ${data.failed_count}`
+                            );
+                        } catch (error: any) {
+                            Alert.alert('Error', 'Failed to send broadcast: ' + (error?.response?.data?.detail || error.message));
+                        } finally {
+                            setBroadcastLoading(false);
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const openBatterySettings = () => {
+        if (Platform.OS === 'android') {
+            Linking.openSettings();
+        }
     };
 
     const handleLogout = () => {
@@ -166,11 +207,40 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                         <Text style={styles.actionButtonText}>{t('testAlert')}</Text>
                     </TouchableOpacity>
 
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#ff9800' }]}
+                        onPress={handleTestBroadcast}
+                        disabled={broadcastLoading}
+                    >
+                        <Text style={styles.actionButtonIcon}>📢</Text>
+                        <Text style={styles.actionButtonText}>
+                            {broadcastLoading ? 'Sending...' : 'Test Broadcast (All Devices)'}
+                        </Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity style={[styles.actionButton, styles.logoutButton]} onPress={handleLogout}>
                         <Text style={styles.actionButtonIcon}>🚪</Text>
                         <Text style={[styles.actionButtonText, styles.logoutText]}>{t('logout')}</Text>
                     </TouchableOpacity>
                 </View>
+
+                {/* Battery Optimization Warning (Android Only) */}
+                {Platform.OS === 'android' && (
+                    <View style={styles.section}>
+                        <View style={styles.warningBox}>
+                            <Text style={styles.warningTitle}>⚠️ Battery Optimization</Text>
+                            <Text style={styles.warningText}>
+                                To receive alerts reliably when the app is closed, disable battery optimization for this app.
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.settingsButton}
+                                onPress={openBatterySettings}
+                            >
+                                <Text style={styles.settingsButtonText}>Open Settings</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
 
                 {/* App Info */}
                 <View style={styles.footer}>
@@ -226,6 +296,36 @@ const styles = StyleSheet.create({
     actionButtonIcon: { fontSize: 24, marginRight: 12 },
     actionButtonText: { fontSize: 16, fontWeight: '600', color: '#333' },
     logoutText: { color: '#f44336' },
+    warningBox: {
+        backgroundColor: '#fff3e0',
+        padding: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#ff9800',
+    },
+    warningTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#e65100',
+        marginBottom: 8,
+    },
+    warningText: {
+        fontSize: 14,
+        color: '#bf360c',
+        lineHeight: 20,
+        marginBottom: 12,
+    },
+    settingsButton: {
+        backgroundColor: '#ff9800',
+        padding: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    settingsButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#fff',
+    },
     footer: { padding: 16, paddingTop: 40, alignItems: 'center' },
     footerText: { fontSize: 16, fontWeight: '600', color: '#666' },
     footerSubtext: { fontSize: 14, color: '#999', marginTop: 4 },

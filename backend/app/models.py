@@ -237,3 +237,68 @@ class OTPStore(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=False)
     is_used = Column(Boolean, default=False)
+
+
+class Device(Base):
+    """Device registration for push notifications (independent of user login)"""
+    __tablename__ = "devices"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    device_id = Column(String(255), unique=True, index=True, nullable=False)
+    expo_push_token = Column(String(255), nullable=False, index=True)
+    app_install_id = Column(String(255), nullable=True)
+    
+    # Optional user association (linked after login)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    
+    # Device info
+    platform = Column(String(50), nullable=True)  # ios, android
+    
+    # Status
+    is_active = Column(Boolean, default=True)
+    last_seen = Column(DateTime, default=datetime.utcnow)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ExternalDisasterSource(str, enum.Enum):
+    """Source of external disaster report"""
+    TWITTER = "twitter"
+    YOUTUBE = "youtube"
+    NEWS_RSS = "news_rss"
+    TELEGRAM = "telegram"
+
+
+class ExternalDisasterReport(Base):
+    """Disaster reports from social media/external sources"""
+    __tablename__ = "external_disaster_reports"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Source info
+    source = Column(Enum(ExternalDisasterSource), nullable=False)
+    source_id = Column(String(255), nullable=True)  # Original post ID
+    source_url = Column(String(500), nullable=True)
+    
+    # Content
+    text_content = Column(Text, nullable=True)
+    media_url = Column(String(500), nullable=True)
+    
+    # Location (extracted)
+    location_text = Column(String(255), nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    
+    # Analysis
+    confidence_score = Column(Float, default=0.5)  # 0-1
+    keywords_matched = Column(Text, nullable=True)  # JSON array
+    
+    # Status
+    is_processed = Column(Boolean, default=False)
+    is_valid = Column(Boolean, default=True)
+    
+    # Timestamps
+    detected_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)

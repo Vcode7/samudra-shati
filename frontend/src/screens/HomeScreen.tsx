@@ -24,6 +24,15 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
     useEffect(() => {
         loadActiveAlerts();
+
+        // Set up auto-refresh polling every 15 seconds for real-time updates
+        const pollInterval = setInterval(() => {
+            loadActiveAlerts();
+            // Send heartbeat to keep device active
+            notificationService.sendHeartbeat();
+        }, 15000);
+
+        return () => clearInterval(pollInterval);
     }, []);
 
     const loadActiveAlerts = async () => {

@@ -9,7 +9,7 @@ import os
 
 from .config import settings
 from .database import init_db
-from .routes import users, authorities, disasters
+from .routes import users, authorities, disasters, devices, admin
 
 # Create FastAPI app
 app = FastAPI(
@@ -42,6 +42,8 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 app.include_router(users.router)
 app.include_router(authorities.router)
 app.include_router(disasters.router)
+app.include_router(devices.router)
+app.include_router(admin.router)
 
 
 @app.on_event("startup")

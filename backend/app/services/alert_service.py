@@ -2,7 +2,7 @@ import math
 from typing import List, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from ..models import User, Authority, DisasterReport
+from ..models import User, Authority, DisasterReport, Device
 
 
 class AlertService:
@@ -78,6 +78,81 @@ class AlertService:
         # TODO: Implement proper geospatial filtering
         
         return all_users[:100]  # Limit to 100 users for now
+    
+    @staticmethod
+    def get_all_device_tokens(db: Session, exclude_user_id: int = None) -> List[str]:
+        """
+        Get all active device tokens for broadcast alerts.
+        
+        This returns tokens from ALL registered devices, not just verified users.
+        Enables alerting devices even before user login.
+        
+        Args:
+            db: Database session
+            exclude_user_id: User ID to exclude (optional)
+        
+        Returns:
+            List of valid Expo push tokens
+        """
+        query = db.query(Device).filter(
+            Device.is_active == True,
+            Device.expo_push_token.isnot(None)
+        )
+        
+        if exclude_user_id:
+            query = query.filter(
+                (Device.user_id != exclude_user_id) | (Device.user_id.is_(None))
+            )
+        
+        devices = query.all()
+        
+        # Filter valid tokens
+        valid_tokens = []
+        for device in devices:
+            token = device.expo_push_token
+            if token and (token.startswith("ExponentPushToken[") or token.startswith("ExpoPushToken[")):
+                valid_tokens.append(token)
+        
+        return valid_tokens
+    
+    @staticmethod
+    def get_all_tokens_for_alert(db: Session, exclude_user_id: int = None) -> List[str]:
+        """
+        Get tokens from both devices table and users table.
+        
+        Combines device tokens (for unregistered users) and user tokens
+        (for verified users) to ensure maximum reach.
+        
+        Args:
+            db: Database session
+            exclude_user_id: User ID to exclude
+        
+        Returns:
+            List of unique valid Expo push tokens
+        """
+        tokens = set()
+        
+        # Get device tokens
+        device_tokens = AlertService.get_all_device_tokens(db, exclude_user_id)
+        tokens.update(device_tokens)
+        
+        # Get user tokens (in case some users have tokens not in devices table)
+        query = db.query(User).filter(
+            User.is_verified == True,
+            User.expo_push_token.isnot(None)
+        )
+        
+        if exclude_user_id:
+            query = query.filter(User.id != exclude_user_id)
+        
+        users = query.all()
+        
+        for user in users:
+            token = user.expo_push_token
+            if token and (token.startswith("ExponentPushToken[") or token.startswith("ExpoPushToken[")):
+                tokens.add(token)
+        
+        return list(tokens)
     
     @staticmethod
     def get_relevant_authorities(
