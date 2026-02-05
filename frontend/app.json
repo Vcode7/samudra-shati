@@ -16,7 +16,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.samudarshati.app",
       "config": {
-        "googleMapsApiKey": "AIzaSyBmWNgJyJ8OvvvyMQh62ouyCoiS0gqRLaQ"
+        "googleMapsApiKey": "google-api-key"
       }
     },
     "android": {
