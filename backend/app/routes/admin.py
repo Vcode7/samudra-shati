@@ -41,7 +41,8 @@ async def test_broadcast_alert(
             failed_count=0,
             message="No registered devices found"
         )
-    
+    print(tokens)
+    print(len(tokens))
     # Send test notification
     result = await NotificationService.send_push_notification(
         expo_tokens=tokens,
@@ -53,7 +54,7 @@ async def test_broadcast_alert(
         },
         priority="high"
     )
-    
+    print("\n\n\n result = ",result,"\n\n\n")
     sent_count = result.get("sent_count", 0) if result.get("success") else 0
     
     # Log the broadcast

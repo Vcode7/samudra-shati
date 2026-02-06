@@ -16,6 +16,32 @@ from ..dependencies import get_current_authority
 router = APIRouter(prefix="/api/authorities", tags=["authorities"])
 
 
+@router.get("/nearby")
+async def get_nearby_authorities(
+    db: Session = Depends(get_db)
+):
+    """
+    Get all active authorities for map display.
+    Returns authorities with their base locations.
+    """
+    authorities = db.query(Authority).filter(
+        Authority.is_active == True
+    ).all()
+    
+    return [
+        {
+            "id": auth.id,
+            "organization_name": auth.organization_name,
+            "authority_type": auth.authority_type.value if hasattr(auth.authority_type, 'value') else str(auth.authority_type),
+            "base_latitude": auth.base_latitude,
+            "base_longitude": auth.base_longitude,
+            "operational_radius_km": auth.operational_radius_km,
+            "contact_number": auth.contact_number,
+        }
+        for auth in authorities
+    ]
+
+
 @router.post("/login", response_model=Token)
 async def authority_login(
     credentials: AuthorityLogin,

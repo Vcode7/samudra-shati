@@ -7,7 +7,7 @@ import { apiClient } from '../services/api';
 import { notificationService } from '../services/notificationService';
 
 export const OTPVerificationScreen: React.FC = () => {
-    
+
     const { login } = useAuth();
     const { t } = useLanguage();
     const [phoneNumber, setPhoneNumber] = useState('');
@@ -40,7 +40,7 @@ export const OTPVerificationScreen: React.FC = () => {
     };
 
     const handleVerifyOTP = async () => {
-        
+
         if (otp.length !== 6) {
             Alert.alert(t('error'), 'Please enter 6-digit OTP');
             vibrationService.error();
@@ -61,6 +61,9 @@ export const OTPVerificationScreen: React.FC = () => {
             if (response.data.access_token) {
                 vibrationService.success();
                 await login(response.data.access_token, 'user');
+
+                // Link device to the authenticated user
+                await notificationService.linkDeviceToUser();
             }
         } catch (error: any) {
             vibrationService.error();

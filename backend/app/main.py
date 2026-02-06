@@ -13,7 +13,7 @@ from .routes import users, authorities, disasters, devices, admin
 
 # Create FastAPI app
 app = FastAPI(
-    title="Samudar Shati API",
+    title="samudar shati API",
     description="Disaster Alert and Reporting System for Coastal Areas",
     version="1.0.0",
     docs_url="/api/docs",
@@ -59,7 +59,7 @@ async def startup_event():
 async def root():
     """Root endpoint"""
     return {
-        "message": "Samudar Shati API",
+        "message": "samudar shati API",
         "version": "1.0.0",
         "docs": "/api/docs"
     }

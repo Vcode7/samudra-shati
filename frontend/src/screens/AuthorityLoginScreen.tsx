@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
 import { apiClient } from '../services/api';
+import { notificationService } from '../services/notificationService';
 
 export const AuthorityLoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const { login } = useAuth();
@@ -42,6 +43,10 @@ export const AuthorityLoginScreen: React.FC<{ navigation: any }> = ({ navigation
             if (response.data.access_token) {
                 vibrationService.success();
                 await login(response.data.access_token, 'authority');
+
+                // Link device to the authenticated authority
+                await notificationService.linkDeviceToUser();
+
                 navigation.replace('AuthorityDashboard');
             }
         } catch (error: any) {

@@ -57,15 +57,66 @@ npx expo run:android
 npm run android
 ```
 
-## Step 5: Get FCM Server Key (For Backend)
+## Step 5: Configure FCM Credentials with Expo (CRITICAL!)
 
-1. In Firebase Console → Project Settings → Cloud Messaging
-2. Enable **Cloud Messaging API (Legacy)**
-3. Copy the **Server key**
-4. Add to your backend `.env`:
+**This step is REQUIRED for push notifications to work on Android devices.**
+
+The error "Unable to retrieve the FCM server key for the recipient's app" means Expo needs your Firebase credentials to deliver notifications.
+
+### Option A: Using EAS Build (Recommended)
+
+If you're using EAS Build, Expo automatically handles FCM setup:
+
+1. Make sure `google-services.json` is in the `frontend/` folder
+2. Build with EAS: `eas build --platform android`
+3. The credentials are automatically picked up
+
+### Option B: Using Expo Push Credentials
+
+For development builds or Expo Go, you need to upload FCM credentials:
+
+1. **Get Firebase Service Account JSON:**
+   - Go to [Firebase Console](https://console.firebase.google.com/)
+   - Select your project → Project Settings → Service Accounts
+   - Click "Generate new private key"
+   - Save the JSON file
+
+2. **Upload to Expo:**
+   ```bash
+   # Login to EAS first
+   eas login
+   
+   # Upload the FCM V1 credentials
+   eas credentials -p android
    ```
-   FCM_SERVER_KEY=your_fcm_server_key_here
-   ```
+   
+   Then select:
+   - "Push Notifications: Manage your FCM V1 credentials"
+   - "Upload a Service Account Key"
+   - Choose your downloaded JSON file
+
+3. **Alternative: Using Legacy FCM Server Key (Deprecated but works):**
+   - Go to Firebase Console → Project Settings → Cloud Messaging
+   - Enable "Cloud Messaging API (Legacy)" if disabled
+   - Copy the "Server key"
+   - Run:
+     ```bash
+     npx expo push:android:upload --api-key YOUR_SERVER_KEY
+     ```
+
+### Verifying the Setup
+
+After uploading credentials, rebuild your app and test:
+
+```bash
+# Check your push credentials
+eas credentials -p android
+
+# Test with a curl (replace token)
+curl -H "Content-Type: application/json" \
+  -X POST https://exp.host/--/api/v2/push/send \
+  -d '{"to": "ExponentPushToken[YOUR_TOKEN]", "title": "Test", "body": "Hello!"}'
+```
 
 ## Testing Push Notifications
 

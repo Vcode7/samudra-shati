@@ -43,7 +43,7 @@ class NotificationService:
             token for token in expo_tokens 
             if token and (token.startswith("ExponentPushToken[") or token.startswith("ExpoPushToken["))
         ]
-        
+        print("valid tokens",valid_tokens)
         if not valid_tokens:
             return {"success": False, "message": "No valid Expo tokens"}
         
@@ -72,7 +72,7 @@ class NotificationService:
                     json=messages,
                     timeout=10.0
                 )
-                
+                print("\n\n\nresponse : ",response,"\n\n\n")
                 if response.status_code == 200:
                     result = response.json()
                     return {
