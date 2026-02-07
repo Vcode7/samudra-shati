@@ -1,6 +1,6 @@
 # Social Media Crawler for Disaster Alerts
 
-An independent Python service that monitors social media and news sources for disaster-related content and submits alerts to the Samudar Shati backend.
+An independent Python service that monitors social media and news sources for disaster-related content and submits alerts to the samudra saathi backend.
 
 ## Features
 

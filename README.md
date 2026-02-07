@@ -1,4 +1,4 @@
-# 🌊 Samudar Shati (Ocean Alert)
+# 🌊 samudra saathi (Ocean Alert)
 
 **Disaster Alert and Reporting System for Rural Coastal Communities in India**
 
@@ -6,7 +6,7 @@ A production-ready mobile and backend system designed to save lives by providing
 
 ## 🎯 Project Overview
 
-Samudar Shati is a comprehensive disaster management system built specifically for rural coastal users in India. The system features:
+samudra saathi is a comprehensive disaster management system built specifically for rural coastal users in India. The system features:
 
 - **Multi-language voice alerts** (English, Hindi, Tamil)
 - **Background notifications** (works when app is closed)

@@ -244,7 +244,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
                 {/* App Info */}
                 <View style={styles.footer}>
-                    <Text style={styles.footerText}>🌊 Samudar Shati v1.0.0</Text>
+                    <Text style={styles.footerText}>🌊 samudra saathi v1.0.0</Text>
                     <Text style={styles.footerSubtext}>Ocean Alert System</Text>
                 </View>
             </ScrollView>

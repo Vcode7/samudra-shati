@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "samudar shati",
+    "name": "samudra saathi",
     "slug": "samudar-shati",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -56,7 +56,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Samudar Shati to use your location to show nearby disasters."
+          "locationAlwaysAndWhenInUsePermission": "Allow samudra saathi to use your location to show nearby disasters."
         }
       ],
       [

@@ -2,7 +2,7 @@
 Social Media Crawler for Disaster Alerts
 
 An independent service that monitors social media and news sources
-for disaster-related content and submits alerts to the Samudar Shati backend.
+for disaster-related content and submits alerts to the samudra saathi backend.
 """
 import asyncio
 import sys
@@ -101,7 +101,7 @@ async def main():
     Main entry point for the social crawler.
     """
     print("="*60)
-    print("   Samudar Shati - Social Media Crawler")
+    print("   samudra saathi - Social Media Crawler")
     print("   Disaster Alert Monitoring Service")
     print("="*60)
     print(f"\nBackend URL: {Config.BACKEND_API_URL}")

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar ,ScrollView} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView } from 'react-native';
 import { useLanguage, LanguageCode } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
 
@@ -44,76 +44,76 @@ export const LanguageSelectionScreen: React.FC<Props> = ({ onComplete }) => {
         <SafeAreaView style={styles.container}>
 
             <StatusBar barStyle="light-content" backgroundColor="#0066cc" />
-             <ScrollView
-    contentContainerStyle={styles.scrollContent}
-    showsVerticalScrollIndicator={false}
-  >
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
 
 
-            <View style={styles.content}>
-                <View style={styles.header}>
-                    <Text style={styles.appName}>🌊 Samudar Shati</Text>
-                    <Text style={styles.appSubtitle}>Ocean Alert System</Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Select Your Primary Language</Text>
-                    <Text style={styles.sectionSubtitle}>Required</Text>
-                    <View style={styles.languageGrid}>
-                        {LANGUAGES.map((lang) => (
-                            <TouchableOpacity
-                            key={lang.code}
-                            style={[styles.languageButton, selectedPrimary === lang.code && styles.languageButtonSelected]}
-                            onPress={() => handlePrimarySelect(lang.code)}
-                            >
-                                <Text style={[styles.languageNative, selectedPrimary === lang.code && styles.languageTextSelected]}>
-                                    {lang.nativeName}
-                                </Text>
-                                <Text style={[styles.languageName, selectedPrimary === lang.code && styles.languageTextSelected]}>
-                                    {lang.name}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
+                <View style={styles.content}>
+                    <View style={styles.header}>
+                        <Text style={styles.appName}>🌊 samudra saathi</Text>
+                        <Text style={styles.appSubtitle}>Ocean Alert System</Text>
                     </View>
-                </View>
 
-                {selectedPrimary && (
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Select Secondary Language</Text>
-                        <Text style={styles.sectionSubtitle}>Optional - Alerts will play in both languages</Text>
+                        <Text style={styles.sectionTitle}>Select Your Primary Language</Text>
+                        <Text style={styles.sectionSubtitle}>Required</Text>
                         <View style={styles.languageGrid}>
-                            {LANGUAGES.filter((lang) => lang.code !== selectedPrimary).map((lang) => (
+                            {LANGUAGES.map((lang) => (
                                 <TouchableOpacity
                                     key={lang.code}
-                                    style={[
-                                        styles.languageButton,
-                                        styles.languageButtonSecondary,
-                                        selectedSecondary === lang.code && styles.languageButtonSelected,
-                                    ]}
-                                    onPress={() => handleSecondarySelect(lang.code)}
+                                    style={[styles.languageButton, selectedPrimary === lang.code && styles.languageButtonSelected]}
+                                    onPress={() => handlePrimarySelect(lang.code)}
                                 >
-                                    <Text style={[styles.languageNative, selectedSecondary === lang.code && styles.languageTextSelected]}>
+                                    <Text style={[styles.languageNative, selectedPrimary === lang.code && styles.languageTextSelected]}>
                                         {lang.nativeName}
                                     </Text>
-                                    <Text style={[styles.languageName, selectedSecondary === lang.code && styles.languageTextSelected]}>
+                                    <Text style={[styles.languageName, selectedPrimary === lang.code && styles.languageTextSelected]}>
                                         {lang.name}
                                     </Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
                     </View>
-                )}
 
-                <TouchableOpacity
-                    style={[styles.continueButton, !selectedPrimary && styles.continueButtonDisabled]}
-                    onPress={handleContinue}
-                    disabled={!selectedPrimary}
-                >
-                    <Text style={styles.continueButtonText}>Continue</Text>
-                </TouchableOpacity>
-            </View>
-                                
-                                </ScrollView>
+                    {selectedPrimary && (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Select Secondary Language</Text>
+                            <Text style={styles.sectionSubtitle}>Optional - Alerts will play in both languages</Text>
+                            <View style={styles.languageGrid}>
+                                {LANGUAGES.filter((lang) => lang.code !== selectedPrimary).map((lang) => (
+                                    <TouchableOpacity
+                                        key={lang.code}
+                                        style={[
+                                            styles.languageButton,
+                                            styles.languageButtonSecondary,
+                                            selectedSecondary === lang.code && styles.languageButtonSelected,
+                                        ]}
+                                        onPress={() => handleSecondarySelect(lang.code)}
+                                    >
+                                        <Text style={[styles.languageNative, selectedSecondary === lang.code && styles.languageTextSelected]}>
+                                            {lang.nativeName}
+                                        </Text>
+                                        <Text style={[styles.languageName, selectedSecondary === lang.code && styles.languageTextSelected]}>
+                                            {lang.name}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+                    )}
+
+                    <TouchableOpacity
+                        style={[styles.continueButton, !selectedPrimary && styles.continueButtonDisabled]}
+                        onPress={handleContinue}
+                        disabled={!selectedPrimary}
+                    >
+                        <Text style={styles.continueButtonText}>Continue</Text>
+                    </TouchableOpacity>
+                </View>
+
+            </ScrollView>
 
         </SafeAreaView>
     );
@@ -139,8 +139,8 @@ const styles = StyleSheet.create({
     continueButtonDisabled: { backgroundColor: '#999', opacity: 0.5 },
     continueButtonText: { fontSize: 20, fontWeight: 'bold', color: '#ffffff' },
     scrollContent: {
-  flexGrow: 1,
-},
+        flexGrow: 1,
+    },
 
 
 });

@@ -175,6 +175,8 @@ class DisasterReportResponse(BaseModel):
     verification_count_yes: int
     verification_count_no: int
     status: str
+    alert_status: Optional[str] = "initial"
+    danger_radius_km: float = 1.0
     created_at: datetime
     
     class Config:
@@ -306,3 +308,104 @@ class TestBroadcastResponse(BaseModel):
     delivered_count: int
     failed_count: int
     message: Optional[str] = None
+
+
+# Location Update Schemas (for emergency mode)
+class LocationUpdate(BaseModel):
+    """Schema for user location updates during emergency"""
+    device_id: str
+    latitude: float
+    longitude: float
+    disaster_id: int
+    accuracy: Optional[float] = None
+
+
+class RadiusCheckResponse(BaseModel):
+    """Response for radius check - determines if user should vibrate"""
+    in_danger_zone: bool
+    distance_km: float
+    should_vibrate: bool
+    disaster_id: int
+    disaster_latitude: float
+    disaster_longitude: float
+    danger_radius_km: float
+
+
+class EmergencyStatusResponse(BaseModel):
+    """Response with emergency mode status"""
+    disaster_id: int
+    alert_status: str
+    confirmation_count: int
+    threshold: int
+    is_emergency_active: bool
+    danger_radius_km: float
+
+
+class VerificationWithEmergencyResponse(BaseModel):
+    """Verification response that includes emergency mode status"""
+    id: int
+    disaster_report_id: int
+    user_id: int
+    is_confirmed: bool
+    created_at: datetime
+    emergency_triggered: bool = False
+    total_confirmations: int = 0
+    
+    class Config:
+        from_attributes = True
+
+
+# Safe Area Schemas
+class SafeAreaCreate(BaseModel):
+    """Schema for creating a safe area"""
+    latitude: float
+    longitude: float
+    radius_km: float = 0.5
+    description: Optional[str] = None
+    disaster_id: Optional[int] = None
+
+
+class SafeAreaUpdate(BaseModel):
+    """Schema for updating a safe area"""
+    radius_km: Optional[float] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class SafeAreaResponse(BaseModel):
+    """Response schema for safe area"""
+    id: int
+    latitude: float
+    longitude: float
+    radius_km: float
+    description: Optional[str]
+    is_active: bool
+    created_by_authority_id: int
+    disaster_id: Optional[int]
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Device Location Schemas
+class DeviceLocationUpdate(BaseModel):
+    """Schema for anonymous device location updates"""
+    device_id: str
+    latitude: float
+    longitude: float
+    heading: Optional[float] = None  # Direction in degrees
+    speed: Optional[float] = None  # Speed in m/s
+
+
+# Evacuation Direction Response
+class EvacuationDirectionResponse(BaseModel):
+    """Response with evacuation guidance"""
+    has_safe_area: bool
+    safe_area: Optional[SafeAreaResponse] = None
+    distance_km: Optional[float] = None
+    estimated_time_minutes: Optional[float] = None
+    crowd_direction: Optional[float] = None  # Degrees (0-360)
+    crowd_confidence: Optional[float] = None  # 0-1 confidence score
+    bearing_to_safe_area: Optional[float] = None  # Degrees to safe area
+

@@ -5,10 +5,11 @@ import json
 from datetime import datetime
 
 from ..database import get_db
-from ..models import User, DisasterReport, VerificationResponse, TrustScore, DisasterStatus
+from ..models import User, DisasterReport, VerificationResponse, TrustScore, DisasterStatus, DisasterAlertStatus, Device
 from ..schemas import (
     DisasterReportCreate, DisasterReportResponse,
-    VerificationCreate, VerificationResponse as VerificationResponseSchema
+    VerificationCreate, VerificationResponse as VerificationResponseSchema,
+    VerificationWithEmergencyResponse, EmergencyStatusResponse
 )
 from ..dependencies import get_current_user
 from ..services.image_service import ImageService
@@ -33,6 +34,7 @@ async def create_disaster_report(
     
     Requires verified user
     """
+    print("USER:", current_user)
     # Check if user is verified
     if not current_user.is_verified:
         raise HTTPException(
@@ -47,11 +49,12 @@ async def create_disaster_report(
             detail="Your trust score is too low to submit reports. Please contact support."
         )
     
-    # Validate image
-    if not image.content_type.startswith("image/"):
+    # Validate media file (image or video)
+    allowed_types = ["image/", "video/"]
+    if not any(image.content_type.startswith(t) for t in allowed_types):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File must be an image"
+            detail="File must be an image or video"
         )
     
     # Read image content
@@ -221,6 +224,34 @@ async def verify_disaster(
             detail="Disaster report not found"
         )
     
+    # NEW: Check if disaster is still pending verification
+    if disaster.status != DisasterStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot verify: disaster status is already {disaster.status.value}"
+        )
+    
+    # NEW: Check if disaster report is less than 30 minutes old
+    from datetime import datetime, timedelta
+    report_age = datetime.utcnow() - disaster.created_at
+    if report_age > timedelta(minutes=30):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot verify: disaster report is older than 30 minutes"
+        )
+    
+    # NEW: Check if user is within 10km of disaster location
+    if verification_data.latitude and verification_data.longitude:
+        distance = AlertService.calculate_distance(
+            verification_data.latitude, verification_data.longitude,
+            disaster.latitude, disaster.longitude
+        )
+        if distance > 10.0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot verify: you are {distance:.1f}km away (must be within 10km)"
+            )
+    
     # Check if user already verified this disaster
     existing = db.query(VerificationResponse).filter(
         VerificationResponse.disaster_report_id == disaster_id,
@@ -252,6 +283,7 @@ async def verify_disaster(
     
     # Update disaster status based on verifications
     total_verifications = disaster.verification_count_yes + disaster.verification_count_no
+    emergency_triggered = False
     
     if total_verifications >= 3:
         if disaster.verification_count_yes >= 2:
@@ -275,10 +307,69 @@ async def verify_disaster(
                 )
                 db.add(trust_log)
     
+    # Check if emergency mode should be triggered (5+ confirmations)
+    if (disaster.verification_count_yes >= disaster.emergency_confirmation_threshold and 
+        disaster.alert_status != DisasterAlertStatus.EMERGENCY_ACTIVE):
+        
+        disaster.alert_status = DisasterAlertStatus.EMERGENCY_ACTIVE
+        disaster.status = DisasterStatus.VERIFIED
+        emergency_triggered = True
+        
+        # Send emergency alert to ALL devices in danger radius
+        nearby_devices = db.query(Device).filter(
+            Device.is_active == True,
+            Device.expo_push_token.isnot(None)
+        ).all()
+        
+        tokens = [d.expo_push_token for d in nearby_devices]
+        
+        if tokens:
+            # Prepare emergency message
+            messages = {
+                "en": {
+                    "title": "🚨 EMERGENCY ALERT",
+                    "body": f"VERIFIED DISASTER near {disaster.location_name}! Community confirmed ({disaster.verification_count_yes} people). If you are nearby, evacuate immediately!"
+                },
+                "hi": {
+                    "title": "🚨 आपातकालीन अलर्ट",
+                    "body": f"{disaster.location_name} के पास सत्यापित आपदा! समुदाय द्वारा पुष्टि ({disaster.verification_count_yes} लोग)। यदि आप पास में हैं, तुरंत निकासी करें!"
+                },
+                "ta": {
+                    "title": "🚨 அவசர எச்சரிக்கை",
+                    "body": f"{disaster.location_name} அருகில் சரிபார்க்கப்பட்ட பேரிடர்! சமூகம் உறுதிப்படுத்தியது. நீங்கள் அருகில் இருந்தால், உடனடியாக வெளியேறுங்கள்!"
+                }
+            }
+            
+            await NotificationService.send_push_notification(
+                expo_tokens=tokens,
+                title=messages["en"]["title"],
+                body=messages["en"]["body"],
+                data={
+                    "type": "emergency_active",
+                    "disaster_id": disaster.id,
+                    "latitude": disaster.latitude,
+                    "longitude": disaster.longitude,
+                    "danger_radius_km": disaster.danger_radius_km,
+                    "severity": disaster.severity_level,
+                    "location": disaster.location_name,
+                    "messages": messages
+                },
+                priority="high"
+            )
+    
     db.commit()
     db.refresh(verification)
     
-    return verification
+    # Return verification with emergency status
+    return VerificationWithEmergencyResponse(
+        id=verification.id,
+        disaster_report_id=verification.disaster_report_id,
+        user_id=verification.user_id,
+        is_confirmed=verification.is_confirmed,
+        created_at=verification.created_at,
+        emergency_triggered=emergency_triggered,
+        total_confirmations=disaster.verification_count_yes
+    )
 
 
 @router.get("/nearby", response_model=List[DisasterReportResponse])
@@ -315,3 +406,132 @@ async def get_nearby_disasters(
     nearby_disasters.sort(key=lambda x: x.created_at, reverse=True)
     
     return nearby_disasters[:20]  # Limit to 20 results
+
+
+@router.post("/demo")
+async def trigger_demo_emergency(
+    latitude: float = 13.0827,  # Default Chennai
+    longitude: float = 80.2707,
+    db: Session = Depends(get_db)
+):
+    """
+    ⚠️ DEMO MODE - For Testing Only
+    
+    Triggers a 30-second emergency simulation:
+    - Creates temporary demo disaster
+    - Sends push notifications to all devices
+    - Enables emergency mode on connected apps
+    - Auto-cleanup after 30 seconds
+    """
+    import asyncio
+    from datetime import timedelta
+    
+    # Create a demo disaster report
+    demo_disaster = DisasterReport(
+        reporter_id=1,  # System user
+        latitude=latitude,
+        longitude=longitude,
+        location_name="[DEMO] Emergency Simulation",
+        description="⚠️ This is a DEMO emergency. Not a real disaster.",
+        image_url="/uploads/demo_disaster.jpg",
+        severity_level=8,
+        status=DisasterStatus.VERIFIED,
+        alert_status=DisasterAlertStatus.EMERGENCY_ACTIVE,
+        danger_radius_km=2.0,
+        is_demo=True  # Mark as demo
+    )
+    
+    db.add(demo_disaster)
+    db.commit()
+    db.refresh(demo_disaster)
+    
+    # Get all devices with push tokens
+    devices = db.query(Device).filter(
+        Device.is_active == True,
+        Device.expo_push_token.isnot(None)
+    ).all()
+    
+    tokens = [d.expo_push_token for d in devices if d.expo_push_token]
+    
+    if tokens:
+        # Send emergency notification
+        emergency_messages = {
+            "en": {
+                "title": "🚨 [DEMO] EMERGENCY ALERT",
+                "body": "⚠️ Demo Mode Active - This is a TEST. Emergency mode for 30 seconds."
+            },
+            "hi": {
+                "title": "🚨 [डेमो] आपातकालीन अलर्ट",
+                "body": "⚠️ डेमो मोड सक्रिय - यह एक परीक्षण है। 30 सेकंड के लिए आपातकालीन मोड।"
+            },
+            "ta": {
+                "title": "🚨 [டெமோ] அவசர எச்சரிக்கை",
+                "body": "⚠️ டெமோ முறை செயல்பாட்டில் - இது ஒரு சோதனை. 30 வினாடிகளுக்கு அவசரநிலை."
+            }
+        }
+        
+        await NotificationService.send_push_notification(
+            expo_tokens=tokens,
+            title=emergency_messages["en"]["title"],
+            body=emergency_messages["en"]["body"],
+            data={
+                "type": "emergency_active",
+                "disaster_id": demo_disaster.id,
+                "latitude": latitude,
+                "longitude": longitude,
+                "danger_radius_km": 2.0,
+                "location": "[DEMO] Emergency Simulation",
+                "is_demo": True,
+                "duration_seconds": 30,
+                "messages": emergency_messages
+            },
+            priority="high"
+        )
+    
+    # Schedule cleanup after 30 seconds (background task)
+    async def cleanup_demo():
+        await asyncio.sleep(30)
+        from ..database import SessionLocal
+        cleanup_db = SessionLocal()
+        try:
+            demo = cleanup_db.query(DisasterReport).filter(
+                DisasterReport.id == demo_disaster.id
+            ).first()
+            if demo:
+                demo.status = DisasterStatus.RESOLVED
+                demo.alert_status = DisasterAlertStatus.RESOLVED
+                cleanup_db.commit()
+                print(f"[DEMO] Cleaned up demo disaster {demo_disaster.id}")
+        finally:
+            cleanup_db.close()
+    
+    # Run cleanup in background
+    asyncio.create_task(cleanup_demo())
+    
+    return {
+        "success": True,
+        "demo_id": demo_disaster.id,
+        "message": "⚠️ Demo emergency started for 30 seconds",
+        "devices_notified": len(tokens),
+        "cleanup_after_seconds": 30
+    }
+
+
+@router.delete("/demo/{demo_id}")
+async def cancel_demo_emergency(
+    demo_id: int,
+    db: Session = Depends(get_db)
+):
+    """Cancel a running demo emergency"""
+    demo = db.query(DisasterReport).filter(
+        DisasterReport.id == demo_id
+    ).first()
+    
+    if not demo:
+        raise HTTPException(status_code=404, detail="Demo not found")
+    
+    demo.status = DisasterStatus.RESOLVED
+    demo.alert_status = DisasterAlertStatus.RESOLVED
+    db.commit()
+    
+    return {"success": True, "message": "Demo emergency cancelled"}

@@ -9,11 +9,11 @@ import os
 
 from .config import settings
 from .database import init_db
-from .routes import users, authorities, disasters, devices, admin
+from .routes import users, authorities, disasters, devices, admin, locations, safe_areas, evacuation, service_centers
 
 # Create FastAPI app
 app = FastAPI(
-    title="samudar shati API",
+    title="samudra saathi API",
     description="Disaster Alert and Reporting System for Coastal Areas",
     version="1.0.0",
     docs_url="/api/docs",
@@ -44,6 +44,10 @@ app.include_router(authorities.router)
 app.include_router(disasters.router)
 app.include_router(devices.router)
 app.include_router(admin.router)
+app.include_router(locations.router)
+app.include_router(safe_areas.router)
+app.include_router(evacuation.router)
+app.include_router(service_centers.router)
 
 
 @app.on_event("startup")
@@ -59,7 +63,7 @@ async def startup_event():
 async def root():
     """Root endpoint"""
     return {
-        "message": "samudar shati API",
+        "message": "samudra saathi API",
         "version": "1.0.0",
         "docs": "/api/docs"
     }

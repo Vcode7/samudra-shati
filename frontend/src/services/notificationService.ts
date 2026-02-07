@@ -6,20 +6,78 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { voiceService } from './voiceService';
 import { vibrationService } from './vibrationService';
 import { apiClient } from './api';
+import { emergencyModeService } from './emergencyModeService';
+import { locationService } from './locationService';
+import { navigateToDisasterMap, navigateToEvacuation } from './navigationService';
 
 // Storage keys
 const DEVICE_ID_KEY = 'device_id';
 const PUSH_TOKEN_KEY = 'expo_push_token';
 const DEVICE_REGISTERED_KEY = 'device_registered';
 
+// Notification action identifiers
+const ACTION_VERIFY = 'VERIFY';
+const ACTION_REJECT = 'REJECT';
+
 // Configure notification handler
 Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
-        const data = notification.request.content.data;
+        const data = notification.request.content.data as {
+            type?: string;
+            messages?: Record<string, { title: string; body: string }>;
+            disaster_id?: number;
+            latitude?: number;
+            longitude?: number;
+            danger_radius_km?: number;
+            location?: string;
+            actions?: Array<{ identifier: string; title: string }>;
+        };
+
+        // Handle emergency mode activation
+        if (data.type === 'emergency_active') {
+            const messages = data.messages || {} as Record<string, { title: string; body: string }>;
+
+            await voiceService.speakDualLanguage(
+                notification.request.content.title || 'EMERGENCY ALERT',
+                notification.request.content.body || '',
+                messages
+            );
+
+            // Activate emergency mode with disaster info
+            emergencyModeService.activate({
+                disaster_id: data.disaster_id || 0,
+                latitude: data.latitude || 0,
+                longitude: data.longitude || 0,
+                danger_radius_km: data.danger_radius_km || 1.0,
+                location_name: data.location || 'Unknown Location',
+            });
+
+            return {
+                shouldShowAlert: true,
+                shouldPlaySound: true,
+                shouldSetBadge: true,
+                shouldShowBanner: true,
+                shouldShowList: true,
+                priority: Notifications.AndroidNotificationPriority.MAX,
+            };
+        }
+
+        // Handle evacuation route notification
+        if (data.type === 'evacuation_route') {
+            const messages = data.messages || {} as Record<string, { title: string; body: string }>;
+
+            await voiceService.speakDualLanguage(
+                notification.request.content.title || 'Evacuation Alert',
+                notification.request.content.body || '',
+                messages
+            );
+
+            vibrationService.emergencyPattern();
+        }
 
         // Play voice alert for disaster alerts
         if (data.type === 'disaster_alert' || data.type === 'verification_request' || data.type === 'external_alert' || data.type === 'test_broadcast') {
-            const messages = data.messages || {};
+            const messages = data.messages || {} as Record<string, { title: string; body: string }>;
 
             await voiceService.speakDualLanguage(
                 notification.request.content.title || 'Alert',
@@ -40,6 +98,109 @@ Notifications.setNotificationHandler({
         };
     },
 });
+
+// Handle notification action responses (Verify/Reject button taps + notification tap)
+async function handleNotificationAction(response: Notifications.NotificationResponse) {
+    const actionIdentifier = response.actionIdentifier;
+    const data = response.notification.request.content.data as {
+        type?: string;
+        disaster_id?: number;
+        latitude?: number;
+        longitude?: number;
+        danger_radius_km?: number;
+        location?: string;
+    };
+
+    // Handle tap on notification body (open map)
+    if (actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
+        console.log('[Notification] Tapped, navigating to map', data);
+
+        // Navigate to map for emergency/disaster notifications
+        if (data.type === 'emergency_active' || data.type === 'disaster_alert' || data.type === 'verification_request') {
+            if (data.disaster_id && data.latitude && data.longitude) {
+                navigateToDisasterMap({
+                    disaster_id: data.disaster_id,
+                    latitude: data.latitude,
+                    longitude: data.longitude,
+                    danger_radius_km: data.danger_radius_km,
+                    location_name: data.location,
+                });
+            }
+        }
+
+        // Navigate to evacuation screen for evacuation notifications
+        if (data.type === 'evacuation_route') {
+            if (data.disaster_id && data.latitude && data.longitude) {
+                navigateToEvacuation({
+                    disaster_id: data.disaster_id,
+                    latitude: data.latitude,
+                    longitude: data.longitude,
+                });
+            }
+        }
+
+        return;
+    }
+
+    // Handle Verify/Reject action buttons
+    if (data.type !== 'verification_request' || !data.disaster_id) {
+        return;
+    }
+
+    if (actionIdentifier === ACTION_VERIFY || actionIdentifier === ACTION_REJECT) {
+        const isConfirmed = actionIdentifier === ACTION_VERIFY;
+
+        try {
+            // Get user's current location
+            const coords = await locationService.getCoordinates();
+
+            // Send verification to backend
+            const api = await apiClient();
+            await api.post(`/api/disasters/${data.disaster_id}/verify`, {
+                disaster_report_id: data.disaster_id,
+                is_confirmed: isConfirmed,
+                latitude: coords?.latitude,
+                longitude: coords?.longitude,
+            });
+
+            // Feedback to user
+            vibrationService.success();
+
+            // Schedule a local notification for feedback
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: isConfirmed ? '✅ Verified' : '❌ Rejected',
+                    body: isConfirmed
+                        ? 'Thank you for verifying this disaster report.'
+                        : 'Thank you for your response.',
+                    sound: 'default',
+                },
+                trigger: null,
+            });
+
+            // Navigate to map after verification
+            if (data.latitude && data.longitude) {
+                navigateToDisasterMap({
+                    disaster_id: data.disaster_id,
+                    latitude: data.latitude,
+                    longitude: data.longitude,
+                });
+            }
+        } catch (error: any) {
+            console.error('Verification action failed:', error);
+            vibrationService.error();
+
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: '⚠️ Verification Failed',
+                    body: error?.response?.data?.detail || 'Could not submit verification. Please try again.',
+                    sound: 'default',
+                },
+                trigger: null,
+            });
+        }
+    }
+}
 
 export const notificationService = {
     /**
@@ -93,6 +254,21 @@ export const notificationService = {
                     sound: 'default',
                     enableVibrate: true,
                 });
+
+                // Set up notification categories with action buttons
+                await Notifications.setNotificationCategoryAsync('verification', [
+                    {
+                        identifier: ACTION_VERIFY,
+                        buttonTitle: '✅ Verify',
+                        options: { opensAppToForeground: false },
+                    },
+                    {
+                        identifier: ACTION_REJECT,
+                        buttonTitle: '❌ Reject',
+                        options: { opensAppToForeground: false },
+                    },
+                ]);
+
             }
 
             // Try to get push token
@@ -253,5 +429,12 @@ export const notificationService = {
         const { status } = await Notifications.getPermissionsAsync();
         return status;
     },
-};
 
+    /**
+     * Set up listener for notification action button responses
+     * Should be called during app initialization
+     */
+    setupNotificationActionListener() {
+        return Notifications.addNotificationResponseReceivedListener(handleNotificationAction);
+    },
+};

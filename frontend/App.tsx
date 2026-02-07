@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LanguageProvider, useLanguage } from './src/context/LanguageContext';
 import { notificationService } from './src/services/notificationService';
+import { emergencyModeService } from './src/services/emergencyModeService';
 import { LanguageSelectionScreen } from './src/screens/LanguageSelectionScreen';
 import { OTPVerificationScreen } from './src/screens/OTPVerificationScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -16,11 +17,23 @@ import { AlertsMapScreen } from './src/screens/AlertsMapScreen';
 import { AuthorityLoginScreen } from './src/screens/AuthorityLoginScreen';
 import { AuthorityDashboardScreen } from './src/screens/AuthorityDashboardScreen';
 import { EquipmentManagementScreen } from './src/screens/EquipmentManagementScreen';
+import { EmergencyOverlayScreen } from './src/screens/EmergencyOverlayScreen';
+import { SafeAreaManagementScreen } from './src/screens/SafeAreaManagementScreen';
+import { EvacuationGuidanceScreen } from './src/screens/EvacuationGuidanceScreen';
+import { navigationRef } from './src/services/navigationService';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initApi } from './src/services/api';
 
 const Stack = createStackNavigator();
+
+interface DisasterLocation {
+  disaster_id: number;
+  latitude: number;
+  longitude: number;
+  danger_radius_km: number;
+  location_name: string;
+}
 
 const AppNavigator: React.FC = () => {
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -29,18 +42,34 @@ const AppNavigator: React.FC = () => {
   const [checkingLanguage, setCheckingLanguage] = useState(true);
   const [apiReady, setApiReady] = useState(false);
 
+  // Emergency mode state
+  const [emergencyActive, setEmergencyActive] = useState(false);
+  const [activeDisaster, setActiveDisaster] = useState<DisasterLocation | null>(null);
+
   useEffect(() => {
     (async () => {
       try {
         await initApi();
         await checkLanguageSelection();
         await setupNotifications();
+        await setupEmergencyMode();
         setApiReady(true);
       } catch (e) {
         console.error('App init failed:', e);
       }
     })();
   }, []);
+
+  const setupEmergencyMode = async () => {
+    // Set callback for emergency state changes
+    emergencyModeService.setStateChangeCallback((active, disaster) => {
+      setEmergencyActive(active);
+      setActiveDisaster(disaster);
+    });
+
+    // Restore any previously active emergency
+    await emergencyModeService.restoreState();
+  };
 
 
 
@@ -74,9 +103,18 @@ const AppNavigator: React.FC = () => {
       notificationService.addNotificationResponseListener((response) => {
         console.log('Notification tapped:', response);
       });
+
+      // Set up notification action listener for Verify/Reject buttons
+      notificationService.setupNotificationActionListener();
+
     } catch (error) {
       console.error('Notification setup failed:', error);
     }
+  };
+
+  const handleEmergencyDismiss = () => {
+    setEmergencyActive(false);
+    setActiveDisaster(null);
   };
 
   if (authLoading || langLoading || checkingLanguage || !apiReady) {
@@ -89,35 +127,46 @@ const AppNavigator: React.FC = () => {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!languageSelected ? (
-          <Stack.Screen name="LanguageSelection">
-            {(props) => (
-              <LanguageSelectionScreen
-                {...props}
-                onComplete={() => setLanguageSelected(true)}
-              />
-            )}
-          </Stack.Screen>
-        ) : !isAuthenticated ? (
-          <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
-        ) : (
-          <>
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="UploadDisaster" component={UploadDisasterScreen} />
-            <Stack.Screen name="RecentAlerts" component={RecentAlertsScreen} />
-            <Stack.Screen name="DisasterDetails" component={DisasterDetailsScreen} />
-            <Stack.Screen name="Verification" component={VerificationScreen} />
-            <Stack.Screen name="Settings" component={SettingsScreen} />
-            <Stack.Screen name="AlertsMap" component={AlertsMapScreen} />
-            <Stack.Screen name="AuthorityLogin" component={AuthorityLoginScreen} />
-            <Stack.Screen name="AuthorityDashboard" component={AuthorityDashboardScreen} />
-            <Stack.Screen name="EquipmentManagement" component={EquipmentManagementScreen} />
-          </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <>
+      <NavigationContainer ref={navigationRef}>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {!languageSelected ? (
+            <Stack.Screen name="LanguageSelection">
+              {(props) => (
+                <LanguageSelectionScreen
+                  {...props}
+                  onComplete={() => setLanguageSelected(true)}
+                />
+              )}
+            </Stack.Screen>
+          ) : !isAuthenticated ? (
+            <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
+          ) : (
+            <>
+              <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen name="UploadDisaster" component={UploadDisasterScreen} />
+              <Stack.Screen name="RecentAlerts" component={RecentAlertsScreen} />
+              <Stack.Screen name="DisasterDetails" component={DisasterDetailsScreen} />
+              <Stack.Screen name="Verification" component={VerificationScreen} />
+              <Stack.Screen name="Settings" component={SettingsScreen} />
+              <Stack.Screen name="AlertsMap" component={AlertsMapScreen} />
+              <Stack.Screen name="AuthorityLogin" component={AuthorityLoginScreen} />
+              <Stack.Screen name="AuthorityDashboard" component={AuthorityDashboardScreen} />
+              <Stack.Screen name="EquipmentManagement" component={EquipmentManagementScreen} />
+              <Stack.Screen name="SafeAreaManagement" component={SafeAreaManagementScreen} />
+              <Stack.Screen name="EvacuationGuidance" component={EvacuationGuidanceScreen} />
+            </>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+
+      {/* Global Emergency Overlay */}
+      <EmergencyOverlayScreen
+        visible={emergencyActive}
+        disaster={activeDisaster}
+        onDismiss={handleEmergencyDismiss}
+      />
+    </>
   );
 };
 

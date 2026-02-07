@@ -56,8 +56,14 @@ class NotificationService:
                 "title": title,
                 "body": body,
                 "priority": priority,
-                "channelId": "disaster-alerts",  # Android notification channel
+                "channelId": "disaster-alerts",
             }
+            
+            # Add category for action buttons (verification notifications)
+            if data and data.get("type") == "verification_request":
+                message["categoryIdentifier"] = "verification"
+                # Add actions for Android
+                message["_displayInForeground"] = True
             
             if data:
                 message["data"] = data
@@ -174,7 +180,16 @@ class NotificationService:
                 "type": "verification_request",
                 "disaster_id": disaster_id,
                 "location": location_name,
-                "messages": messages
+                "messages": messages,
+                # Action buttons for Android notification
+                "actions": [
+                    {"identifier": "VERIFY", "title": "✅ Verify"},
+                    {"identifier": "REJECT", "title": "❌ Reject"}
+                ],
+                # Include verification requirements for frontend
+                "requires_location": True,
+                "max_distance_km": 10.0,
+                "max_age_minutes": 30
             },
             sound="default",
             priority="high"

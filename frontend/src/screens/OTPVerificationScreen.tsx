@@ -77,7 +77,7 @@ export const OTPVerificationScreen: React.FC = () => {
         <SafeAreaView style={styles.container}>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.content}>
                 <View style={styles.header}>
-                    <Text style={styles.title}>🌊 Samudar Shati</Text>
+                    <Text style={styles.title}>🌊 samudra saathi</Text>
                     <Text style={styles.subtitle}>Verify Your Phone Number</Text>
                 </View>
 

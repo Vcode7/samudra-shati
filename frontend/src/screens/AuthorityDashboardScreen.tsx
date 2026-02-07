@@ -184,6 +184,13 @@ export const AuthorityDashboardScreen: React.FC<{ navigation: any }> = ({ naviga
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={styles.actionButton}
+                            onPress={() => navigation.navigate('SafeAreaManagement')}
+                        >
+                            <Text style={styles.actionIcon}>🟢</Text>
+                            <Text style={styles.actionText}>Safe Areas</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.actionButton}
                             onPress={() => navigation.navigate('AlertsMap')}
                         >
                             <Text style={styles.actionIcon}>🗺️</Text>

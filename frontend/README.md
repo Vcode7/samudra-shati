@@ -1,4 +1,4 @@
-# Samudar Shati - Frontend (React Native + Expo)
+# samudra saathi - Frontend (React Native + Expo)
 
 Disaster alert mobile application rebuilt with proper Expo initialization and compatible dependencies.
 
@@ -100,7 +100,7 @@ const API_BASE_URL = 'http://192.168.1.100:8000';
 ### App Configuration
 
 The `app.json` file includes:
-- App name: "Samudar Shati"
+- App name: "samudra saathi"
 - Required permissions (Camera, Location, Storage, Vibrate)
 - Notification plugin configuration
 - Bundle identifiers for iOS and Android

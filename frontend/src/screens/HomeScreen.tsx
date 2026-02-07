@@ -72,7 +72,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <SafeAreaView style={styles.container}>
             <ScrollView style={styles.scrollView} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>🌊 Samudar Shati</Text>
+                    <Text style={styles.headerTitle}>🌊 samudra saathi</Text>
                     <Text style={styles.headerSubtitle}>
                         {t('home')} • Trust Score: {user?.trust_score?.toFixed(0) || 100}
                     </Text>
@@ -81,10 +81,12 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 {activeAlerts.length > 0 ? (
                     <View style={styles.alertBanner}>
                         <Text style={styles.alertBannerIcon}>🚨</Text>
-                        <View style={styles.alertBannerContent}>
-                            <Text style={styles.alertBannerTitle}>{activeAlerts.length} {t('activeAlerts')}</Text>
-                            <Text style={styles.alertBannerText}>Tap to view details</Text>
-                        </View>
+                        <TouchableOpacity onPress={() => navigation.navigate('AlertsMap')}>
+                            <View style={styles.alertBannerContent}>
+                                <Text style={styles.alertBannerTitle}>{activeAlerts.length} {t('activeAlerts')}</Text>
+                                <Text style={styles.alertBannerText}>Tap to view details</Text>
+                            </View>
+                        </TouchableOpacity>
                     </View>
                 ) : (
                     <View style={styles.noAlertBanner}>
@@ -123,6 +125,39 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                     <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#1a1a2e', borderColor: '#1a1a2e' }]} onPress={() => { vibrationService.light(); navigation.navigate('AuthorityLogin'); }}>
                         <Text style={styles.actionButtonIcon}>🏛️</Text>
                         <Text style={[styles.actionButtonText, { color: '#fff' }]}>Authority Login</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: '#ff3333', borderColor: '#ff0000', borderWidth: 3 }]}
+                        onPress={async () => {
+                            vibrationService.heavy();
+                            Alert.alert(
+                                '⚠️ Emergency Demo',
+                                'This will trigger a 30-second emergency simulation. All devices will receive notifications.\n\nContinue?',
+                                [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    {
+                                        text: 'Start Demo',
+                                        style: 'destructive',
+                                        onPress: async () => {
+                                            try {
+                                                const api = await apiClient();
+                                                const response = await api.post('/api/disasters/demo');
+                                                Alert.alert(
+                                                    '🚨 Demo Started',
+                                                    `Emergency simulation active for 30 seconds.\n\n${response.data.devices_notified} devices notified.`
+                                                );
+                                            } catch (error: any) {
+                                                Alert.alert('Error', error?.response?.data?.detail || 'Failed to start demo');
+                                            }
+                                        },
+                                    },
+                                ]
+                            );
+                        }}
+                    >
+                        <Text style={styles.actionButtonIcon}>🚨</Text>
+                        <Text style={[styles.actionButtonText, { color: '#fff' }]}>⚠️ Emergency Demo</Text>
                     </TouchableOpacity>
                 </View>
 

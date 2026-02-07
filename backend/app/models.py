@@ -35,6 +35,14 @@ class AlertType(str, enum.Enum):
     DISASTER_WARNING = "disaster_warning"
     VERIFICATION_REQUEST = "verification_request"
     AUTHORITY_RESPONSE = "authority_response"
+    EMERGENCY_ACTIVE = "emergency_active"  # New: Continuous emergency alert
+
+
+class DisasterAlertStatus(str, enum.Enum):
+    """Alert escalation status based on community verification"""
+    INITIAL = "initial"                     # First alert sent
+    COMMUNITY_VERIFIED = "community_verified"  # 5+ users confirmed
+    EMERGENCY_ACTIVE = "emergency_active"   # Continuous alerts active
 
 
 class User(Base):
@@ -144,6 +152,12 @@ class DisasterReport(Base):
     verification_count_no = Column(Integer, default=0)
     status = Column(Enum(DisasterStatus), default=DisasterStatus.PENDING)
     
+    # Emergency mode tracking
+    alert_status = Column(Enum(DisasterAlertStatus), default=DisasterAlertStatus.INITIAL)
+    danger_radius_km = Column(Float, default=1.0)  # 1km default danger zone
+    emergency_confirmation_threshold = Column(Integer, default=5)  # Number of confirmations to trigger emergency
+    is_demo = Column(Boolean, default=False)  # Flag for demo/test disasters
+    
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     resolved_at = Column(DateTime, nullable=True)
@@ -151,6 +165,7 @@ class DisasterReport(Base):
     # Relationships
     reporter = relationship("User", back_populates="disaster_reports")
     verifications = relationship("VerificationResponse", back_populates="disaster_report", cascade="all, delete-orphan")
+    location_logs = relationship("UserLocationLog", back_populates="disaster_report", cascade="all, delete-orphan")
 
 
 class VerificationResponse(Base):
@@ -302,3 +317,114 @@ class ExternalDisasterReport(Base):
     # Timestamps
     detected_at = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class UserLocationLog(Base):
+    """User location updates during emergency mode"""
+    __tablename__ = "user_location_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Device/User identification
+    device_id = Column(String(255), index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    
+    # Related disaster
+    disaster_report_id = Column(Integer, ForeignKey("disaster_reports.id"), nullable=False)
+    
+    # Location data
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    accuracy = Column(Float, nullable=True)  # GPS accuracy in meters
+    
+    # Computed distance from disaster
+    distance_km = Column(Float, nullable=True)
+    in_danger_zone = Column(Boolean, default=False)
+    
+    # Timestamp
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    disaster_report = relationship("DisasterReport", back_populates="location_logs")
+
+
+class SafeArea(Base):
+    """Authority-defined safe zones during disasters"""
+    __tablename__ = "safe_areas"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    radius_km = Column(Float, default=0.5)
+    description = Column(String(255), nullable=True)
+    created_by_authority_id = Column(Integer, ForeignKey("authorities.id"), nullable=False)
+    disaster_id = Column(Integer, ForeignKey("disaster_reports.id"), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    authority = relationship("Authority", backref="safe_areas")
+    disaster = relationship("DisasterReport", backref="safe_areas")
+
+
+class DeviceLocation(Base):
+    """Anonymized device movement tracking for crowd analysis"""
+    __tablename__ = "device_locations"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    device_hash = Column(String(64), index=True, nullable=False)  # Hashed device ID for anonymity
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    heading = Column(Float, nullable=True)  # Movement direction in degrees (0-360)
+    speed = Column(Float, nullable=True)  # Speed in m/s
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class EvacuationAlert(Base):
+    """Track evacuation alerts to prevent spam (throttling)"""
+    __tablename__ = "evacuation_alerts"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    area_latitude = Column(Float, nullable=False)
+    area_longitude = Column(Float, nullable=False)
+    direction_degrees = Column(Float, nullable=False)  # Recommended evacuation direction
+    disaster_id = Column(Integer, ForeignKey("disaster_reports.id"), nullable=True)
+    sent_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    disaster = relationship("DisasterReport", backref="evacuation_alerts")
+
+
+class ServiceCenterType(str, enum.Enum):
+    """Types of service centers"""
+    SAFE_ZONE = "safe_zone"
+    HOSPITAL = "hospital"
+    POLICE = "police"
+    FIRE = "fire"
+    COAST_GUARD = "coast_guard"
+    RELIEF_CENTER = "relief_center"
+    REPORT_CENTER = "report_center"
+
+
+class ServiceCenter(Base):
+    """Service centers (hospitals, police, fire, coast guard, relief) managed by authorities"""
+    __tablename__ = "service_centers"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    center_type = Column(Enum(ServiceCenterType), nullable=False)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    radius_km = Column(Float, default=0.5)
+    contact_number = Column(String(20), nullable=True)
+    address = Column(String(500), nullable=True)
+    created_by_authority_id = Column(Integer, ForeignKey("authorities.id"), nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    authority = relationship("Authority", backref="service_centers")
+
+

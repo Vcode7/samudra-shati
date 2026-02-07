@@ -1,6 +1,6 @@
 # Firebase Push Notifications Setup
 
-This guide explains how to configure Firebase for push notifications in the Samudar Shati app.
+This guide explains how to configure Firebase for push notifications in the samudra saathi app.
 
 ## Current Status
 
@@ -23,7 +23,7 @@ To enable **remote push notifications** from your backend, follow these steps.
 
 1. In Firebase Console, click **"Add app"** → **Android**
 2. Enter Android package name: `com.samudarshati.app`
-3. App nickname: `Samudar Shati`
+3. App nickname: `samudra saathi`
 4. Click **Register app**
 5. Download `google-services.json`
 

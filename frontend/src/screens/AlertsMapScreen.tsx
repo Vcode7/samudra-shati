@@ -35,6 +35,15 @@ interface Authority {
     contact_number: string;
 }
 
+interface SafeArea {
+    id: number;
+    latitude: number;
+    longitude: number;
+    radius_km: number;
+    description: string | null;
+    is_active: boolean;
+}
+
 const { width, height } = Dimensions.get('window');
 
 export const AlertsMapScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -42,9 +51,11 @@ export const AlertsMapScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     const mapRef = useRef<MapView>(null);
     const [disasters, setDisasters] = useState<DisasterMarker[]>([]);
     const [authorities, setAuthorities] = useState<Authority[]>([]);
+    const [safeAreas, setSafeAreas] = useState<SafeArea[]>([]);
     const [loading, setLoading] = useState(true);
     const [showAuthorities, setShowAuthorities] = useState(true);
     const [showDangerZones, setShowDangerZones] = useState(true);
+    const [showSafeAreas, setShowSafeAreas] = useState(true);
     const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
     const [region, setRegion] = useState({
         latitude: 13.0827,  // Default: Chennai
@@ -77,12 +88,18 @@ export const AlertsMapScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     const loadData = async () => {
         try {
             const api = await apiClient();
-            const [disastersRes, authoritiesRes] = await Promise.all([
+            const coords = await locationService.getCoordinates();
+            const lat = coords?.latitude || 13.0827;
+            const lng = coords?.longitude || 80.2707;
+
+            const [disastersRes, authoritiesRes, safeAreasRes] = await Promise.all([
                 api.get('/api/disasters/recent?page=1&page_size=100'),
                 api.get('/api/authorities/nearby').catch(() => ({ data: [] })),
+                api.get(`/api/safe-areas/nearby?lat=${lat}&lng=${lng}&radius_km=50`).catch(() => ({ data: [] })),
             ]);
             setDisasters(disastersRes.data);
             setAuthorities(authoritiesRes.data);
+            setSafeAreas(safeAreasRes.data);
         } catch (error) {
             console.error('Error loading data:', error);
         } finally {
@@ -189,7 +206,7 @@ export const AlertsMapScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                             strokeWidth={2}
                         />
                     ))}
-   {showDangerZones && disasters.filter(d => d.status !== 'VERIFIED').map((disaster) => (
+                    {showDangerZones && disasters.filter(d => d.status !== 'VERIFIED').map((disaster) => (
                         <Circle
                             key={`circle-${disaster.id}`}
                             center={{
@@ -236,11 +253,11 @@ export const AlertsMapScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                             }}
                             pinColor="#00aa00"
                         >
-                             <View style={styles.authorityMarker}>
-      <Text style={styles.authorityIcon}>
-        {getAuthorityIcon(auth.authority_type)}
-      </Text>
-    </View>
+                            <View style={styles.authorityMarker}>
+                                <Text style={styles.authorityIcon}>
+                                    {getAuthorityIcon(auth.authority_type)}
+                                </Text>
+                            </View>
                             <Callout>
                                 <View style={styles.callout}>
                                     <Text style={styles.calloutTitle}>
@@ -255,6 +272,47 @@ export const AlertsMapScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                                     <Text style={styles.calloutTap}>
                                         Coverage: {auth.operational_radius_km}km
                                     </Text>
+                                </View>
+                            </Callout>
+                        </Marker>
+                    ))}
+
+                    {/* Safe Area Circles */}
+                    {showSafeAreas && safeAreas.map((area) => (
+                        <Circle
+                            key={`safe-${area.id}`}
+                            center={{
+                                latitude: area.latitude,
+                                longitude: area.longitude,
+                            }}
+                            radius={area.radius_km * 1000}  // Convert km to meters
+                            fillColor="rgba(76, 175, 80, 0.2)"
+                            strokeColor="#4caf50"
+                            strokeWidth={2}
+                        />
+                    ))}
+
+                    {/* Safe Area Markers */}
+                    {showSafeAreas && safeAreas.map((area) => (
+                        <Marker
+                            key={`safe-marker-${area.id}`}
+                            coordinate={{
+                                latitude: area.latitude,
+                                longitude: area.longitude,
+                            }}
+                        >
+                            <View style={styles.safeAreaMarker}>
+                                <Text style={styles.safeAreaIcon}>🟢</Text>
+                            </View>
+                            <Callout>
+                                <View style={styles.callout}>
+                                    <Text style={styles.calloutTitle}>🟢 Safe Area</Text>
+                                    <Text style={styles.calloutSeverity}>
+                                        Radius: {area.radius_km}km
+                                    </Text>
+                                    {area.description && (
+                                        <Text style={styles.calloutStatus}>{area.description}</Text>
+                                    )}
                                 </View>
                             </Callout>
                         </Marker>
@@ -280,6 +338,14 @@ export const AlertsMapScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                         🏛️ Authorities
                     </Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.toggleButton, showSafeAreas && styles.toggleActive]}
+                    onPress={() => setShowSafeAreas(!showSafeAreas)}
+                >
+                    <Text style={[styles.toggleText, showSafeAreas && styles.toggleTextActive]}>
+                        🟢 Safe Areas
+                    </Text>
+                </TouchableOpacity>
             </View>
 
             {/* Legend */}
@@ -299,6 +365,10 @@ export const AlertsMapScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 <View style={styles.legendItem}>
                     <View style={[styles.legendDot, { backgroundColor: '#00aa00' }]} />
                     <Text style={styles.legendText}>Authority</Text>
+                </View>
+                <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: '#4caf50' }]} />
+                    <Text style={styles.legendText}>Safe Zone</Text>
                 </View>
             </View>
 
@@ -376,14 +446,24 @@ const styles = StyleSheet.create({
         color: '#fff',
     },
     authorityMarker: {
-  backgroundColor: '#fff',
-  padding: 6,
-  borderRadius: 20,
-  borderWidth: 2,
-  borderColor: '#00aa00',
-},
-authorityIcon: {
-  fontSize: 22,
-}
+        backgroundColor: '#fff',
+        padding: 6,
+        borderRadius: 20,
+        borderWidth: 2,
+        borderColor: '#00aa00',
+    },
+    authorityIcon: {
+        fontSize: 22,
+    },
+    safeAreaMarker: {
+        backgroundColor: '#fff',
+        padding: 6,
+        borderRadius: 20,
+        borderWidth: 2,
+        borderColor: '#4caf50',
+    },
+    safeAreaIcon: {
+        fontSize: 22,
+    }
 
 });
