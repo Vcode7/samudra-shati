@@ -43,6 +43,7 @@ class DisasterAlertStatus(str, enum.Enum):
     INITIAL = "initial"                     # First alert sent
     COMMUNITY_VERIFIED = "community_verified"  # 5+ users confirmed
     EMERGENCY_ACTIVE = "emergency_active"   # Continuous alerts active
+    RESOLVED = "resolved"                   # Emergency ended
 
 
 class User(Base):

@@ -45,9 +45,11 @@ export const AuthorityLoginScreen: React.FC<{ navigation: any }> = ({ navigation
                 await login(response.data.access_token, 'authority');
 
                 // Link device to the authenticated authority
-                await notificationService.linkDeviceToUser();
+                if (Platform.OS !== 'web') {
+                    await notificationService.linkDeviceToUser();
+                    navigation.replace('AuthorityDashboard');
+                }
 
-                navigation.replace('AuthorityDashboard');
             }
         } catch (error: any) {
             vibrationService.error();
@@ -120,7 +122,16 @@ export const AuthorityLoginScreen: React.FC<{ navigation: any }> = ({ navigation
                                 please use the main app login with your phone number.
                             </Text>
                         </View>
-
+                        {Platform.OS === 'web' && (
+                            <TouchableOpacity
+                                style={{ marginTop: 20, alignItems: 'center' }}
+                                onPress={() => navigation.navigate('AuthorityRegister')}
+                            >
+                                <Text style={{ color: '#4caf50', fontWeight: '600' }}>
+                                    ➕ Register New Authority (Web Only)
+                                </Text>
+                            </TouchableOpacity>
+                        )}
                         <View style={styles.contactBox}>
                             <Text style={styles.contactTitle}>Need Access?</Text>
                             <Text style={styles.contactText}>

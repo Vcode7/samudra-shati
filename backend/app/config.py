@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
     
     # Application
-    DEBUG: bool = True
+    DEBUG: bool = False
     ALLOWED_ORIGINS: str = "*"
     
     # OTP

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, RefreshControl, Alert, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
@@ -122,10 +122,13 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                         <Text style={styles.actionButtonText}>{t('testAlert')}</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#1a1a2e', borderColor: '#1a1a2e' }]} onPress={() => { vibrationService.light(); navigation.navigate('AuthorityLogin'); }}>
-                        <Text style={styles.actionButtonIcon}>🏛️</Text>
-                        <Text style={[styles.actionButtonText, { color: '#fff' }]}>Authority Login</Text>
-                    </TouchableOpacity>
+                    {/* Authority Login - Web Only */}
+                    {Platform.OS === 'web' && (
+                        <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#1a1a2e', borderColor: '#1a1a2e' }]} onPress={() => { vibrationService.light(); navigation.navigate('AuthorityLogin'); }}>
+                            <Text style={styles.actionButtonIcon}>🏛️</Text>
+                            <Text style={[styles.actionButtonText, { color: '#fff' }]}>Authority Login</Text>
+                        </TouchableOpacity>
+                    )}
 
                     <TouchableOpacity
                         style={[styles.actionButton, { backgroundColor: '#ff3333', borderColor: '#ff0000', borderWidth: 3 }]}

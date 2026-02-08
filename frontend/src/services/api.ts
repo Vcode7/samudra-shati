@@ -1,5 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 const CONFIG_URL = 'https://vcode7.github.io/middelware-endpoint/url.json';
 
@@ -24,6 +25,7 @@ export async function initApi() {
     timeout: 30000,
     headers: {
       'Content-Type': 'application/json',
+      'x-client': Platform.OS === 'web' ? 'web' : 'mobile',
     },
   });
 

@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from ..database import get_db
 from ..models import Authority, Equipment
@@ -14,6 +14,18 @@ from ..auth import verify_password, get_password_hash, create_access_token
 from ..dependencies import get_current_authority
 
 router = APIRouter(prefix="/api/authorities", tags=["authorities"])
+
+
+
+from fastapi import Request, Header, HTTPException
+
+def require_web(request: Request, x_client: str = Header(None)):
+    if request.method == "OPTIONS":
+        return  # Allow CORS preflight
+
+    if x_client != "web":
+        raise HTTPException(status_code=403, detail="Web only endpoint")
+
 
 
 @router.get("/nearby")
@@ -86,7 +98,8 @@ async def authority_login(
 @router.post("/register", response_model=AuthorityResponse)
 async def register_authority(
     authority_data: AuthorityCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: str = Depends(require_web)  # Web-only registration
 ):
     """
     Register new authority

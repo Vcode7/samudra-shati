@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "916402856874",
+    "project_id": "samudra-shati",
+    "storage_bucket": "samudra-shati.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:916402856874:android:287c35de7ec7169d2641d3",
+        "android_client_info": {
+          "package_name": "com.samudarshati.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLtl4xL8GZONnRum3i9rkTO8In2MxNU_E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
