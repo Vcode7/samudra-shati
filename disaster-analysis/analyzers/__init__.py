@@ -1,7 +1,5 @@
 # Analyzers package
+from .cnn_analyzer import CNNAnalyzer, PipelineResult
 from .base_analyzer import BaseAnalyzer, AnalysisResult
-from .clip_analyzer import CLIPAnalyzer
-from .custom_model import CustomModelAnalyzer
 
-__all__ = ["BaseAnalyzer", "AnalysisResult", "CLIPAnalyzer", "CustomModelAnalyzer"]
-
+__all__ = ["CNNAnalyzer", "BaseAnalyzer", "AnalysisResult", "PipelineResult"]

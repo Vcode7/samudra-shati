@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from ..database import get_db
-from ..models import Authority, Equipment
+from ..models import Authority, Equipment, DisasterReport, Device, DisasterStatus, DisasterAlertStatus, UserLocationLog
 from ..schemas import (
     AuthorityLogin, AuthorityCreate, AuthorityResponse,
     AuthorityUpdate, Token,
@@ -12,6 +12,7 @@ from ..schemas import (
 )
 from ..auth import verify_password, get_password_hash, create_access_token
 from ..dependencies import get_current_authority
+from ..services.notification_service import NotificationService
 
 router = APIRouter(prefix="/api/authorities", tags=["authorities"])
 
@@ -144,6 +145,120 @@ async def get_authority_profile(
     Get current authority profile
     """
     return current_authority
+
+
+@router.post("/{disaster_id}/verify")
+async def verify_disaster_as_authority(
+    disaster_id: int,
+    current_authority: Authority = Depends(get_current_authority),
+    db: Session = Depends(get_db)
+):
+    """
+    Authority-only instant verification.
+
+    Behavior:
+    - Immediately mark disaster as VERIFIED
+    - Immediately set alert_status = EMERGENCY_ACTIVE
+    - Trigger emergency push notifications
+
+    Note: Device targeting is best-effort.
+    If we have recent UserLocationLog entries for this disaster, we notify devices marked in_danger_zone.
+    Otherwise we fall back to notifying all active devices (existing system behavior).
+    """
+    disaster = db.query(DisasterReport).filter(DisasterReport.id == disaster_id).first()
+    if not disaster:
+        raise HTTPException(status_code=404, detail="Disaster report not found")
+
+    disaster.status = DisasterStatus.VERIFIED
+    disaster.alert_status = DisasterAlertStatus.EMERGENCY_ACTIVE
+    db.commit()
+    db.refresh(disaster)
+
+    # Try to notify devices that are in danger zone for this disaster (requires location logs)
+    tokens: List[str] = []
+
+    try:
+        from sqlalchemy import func
+
+        subquery = db.query(
+            UserLocationLog.device_id,
+            func.max(UserLocationLog.created_at).label("max_time")
+        ).filter(
+            UserLocationLog.disaster_report_id == disaster.id
+        ).group_by(UserLocationLog.device_id).subquery()
+
+        latest_logs = db.query(UserLocationLog).join(
+            subquery,
+            (UserLocationLog.device_id == subquery.c.device_id) &
+            (UserLocationLog.created_at == subquery.c.max_time)
+        ).filter(
+            UserLocationLog.in_danger_zone == True
+        ).all()
+
+        device_ids = [l.device_id for l in latest_logs]
+        if device_ids:
+            devices = db.query(Device).filter(
+                Device.device_id.in_(device_ids),
+                Device.is_active == True,
+                Device.expo_push_token.isnot(None)
+            ).all()
+            tokens = [d.expo_push_token for d in devices if d.expo_push_token]
+    except Exception:
+        tokens = []
+
+    # Fallback: notify all active devices
+    if not tokens:
+        devices = db.query(Device).filter(
+            Device.is_active == True,
+            Device.expo_push_token.isnot(None)
+        ).all()
+        tokens = [d.expo_push_token for d in devices if d.expo_push_token]
+
+    if tokens:
+        messages = {
+            "en": {
+                "title": "🚨 EMERGENCY ALERT",
+                "body": f"VERIFIED DISASTER near {disaster.location_name}! Authorities confirmed. Evacuate immediately if you are nearby."
+            },
+            "hi": {
+                "title": "🚨 आपातकालीन अलर्ट",
+                "body": f"{disaster.location_name} के पास सत्यापित आपदा! अधिकारियों द्वारा पुष्टि। यदि आप पास में हैं, तुरंत निकासी करें!"
+            },
+            "ta": {
+                "title": "🚨 அவசர எச்சரிக்கை",
+                "body": f"{disaster.location_name} அருகில் சரிபார்க்கப்பட்ட பேரிடர்! அதிகாரிகள் உறுதிப்படுத்தினர். நீங்கள் அருகில் இருந்தால் உடனடியாக வெளியேறுங்கள்!"
+            }
+        }
+
+        await NotificationService.send_push_notification(
+            expo_tokens=tokens,
+            title=messages["en"]["title"],
+            body=messages["en"]["body"],
+            data={
+                "type": "emergency_active",
+                "disaster_id": disaster.id,
+                "latitude": disaster.latitude,
+                "longitude": disaster.longitude,
+                "danger_radius_km": disaster.danger_radius_km,
+                "severity": disaster.severity_level,
+                "location": disaster.location_name,
+                "messages": messages,
+                "verified_by": {
+                    "authority_id": current_authority.id,
+                    "organization_name": current_authority.organization_name,
+                    "authority_type": str(current_authority.authority_type),
+                }
+            },
+            priority="high"
+        )
+
+    return {
+        "success": True,
+        "disaster_id": disaster.id,
+        "status": disaster.status.value,
+        "alert_status": disaster.alert_status.value,
+        "devices_notified": len(tokens)
+    }
 
 
 @router.put("/me", response_model=AuthorityResponse)

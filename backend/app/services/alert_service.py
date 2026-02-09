@@ -178,18 +178,19 @@ class AlertService:
         ).all()
         
         # Filter by operational radius
-        relevant_authorities = []
+        # relevant_authorities = []
         
-        for authority in authorities:
-            distance = AlertService.calculate_distance(
-                latitude, longitude,
-                authority.base_latitude, authority.base_longitude
-            )
+        # for authority in authorities:
+        #     distance = AlertService.calculate_distance(
+        #         latitude, longitude,
+        #         authority.base_latitude, authority.base_longitude
+        #     )
             
-            if distance <= authority.operational_radius_km:
-                relevant_authorities.append(authority)
+        #     if distance <= authority.operational_radius_km:
+        #         relevant_authorities.append(authority)
         
-        return relevant_authorities
+        # return relevant_authorities
+        return authorities
     
     @staticmethod
     def prepare_multilingual_message(

@@ -20,6 +20,8 @@ import { EquipmentManagementScreen } from './src/screens/EquipmentManagementScre
 import { EmergencyOverlayScreen } from './src/screens/EmergencyOverlayScreen';
 import { SafeAreaManagementScreen } from './src/screens/SafeAreaManagementScreen';
 import { EvacuationGuidanceScreen } from './src/screens/EvacuationGuidanceScreen';
+import { EmergencyCameraScreen } from './src/screens/EmergencyCameraScreen';
+import { shakeDetectionService } from './src/services/shakeDetectionService';
 import { navigationRef } from './src/services/navigationService';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -46,19 +48,14 @@ const AppNavigator: React.FC = () => {
   const [emergencyActive, setEmergencyActive] = useState(false);
   const [activeDisaster, setActiveDisaster] = useState<DisasterLocation | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        await initApi();
-        await checkLanguageSelection();
-        await setupNotifications();
-        await setupEmergencyMode();
-        setApiReady(true);
-      } catch (e) {
-        console.error('App init failed:', e);
+  const setupShakeDetection = () => {
+    shakeDetectionService.start(() => {
+      // Navigate to emergency camera when shake detected
+      if (navigationRef.isReady()) {
+        navigationRef.navigate('EmergencyCamera' as never);
       }
-    })();
-  }, []);
+    });
+  };
 
   const setupEmergencyMode = async () => {
     // Set callback for emergency state changes
@@ -70,8 +67,6 @@ const AppNavigator: React.FC = () => {
     // Restore any previously active emergency
     await emergencyModeService.restoreState();
   };
-
-
 
   const checkLanguageSelection = async () => {
     try {
@@ -112,11 +107,25 @@ const AppNavigator: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    (async () => {
+      try {
+        await initApi();
+        await checkLanguageSelection();
+        await setupNotifications();
+        await setupEmergencyMode();
+        setupShakeDetection();
+        setApiReady(true);
+      } catch (e) {
+        console.error('App init failed:', e);
+      }
+    })();
+  }, []);
+
   const handleEmergencyDismiss = () => {
     setEmergencyActive(false);
     setActiveDisaster(null);
   };
-
   if (authLoading || langLoading || checkingLanguage || !apiReady) {
     return (
       <View style={styles.loadingContainer}>
@@ -155,6 +164,7 @@ const AppNavigator: React.FC = () => {
               <Stack.Screen name="EquipmentManagement" component={EquipmentManagementScreen} />
               <Stack.Screen name="SafeAreaManagement" component={SafeAreaManagementScreen} />
               <Stack.Screen name="EvacuationGuidance" component={EvacuationGuidanceScreen} />
+              <Stack.Screen name="EmergencyCamera" component={EmergencyCameraScreen} />
             </>
           )}
         </Stack.Navigator>

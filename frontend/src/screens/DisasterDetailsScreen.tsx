@@ -12,7 +12,10 @@ import {
 } from 'react-native';
 import { useLanguage } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
-import {apiClient, getAPIBaseURL } from '../services/api';
+import { apiClient, getAPIBaseURL } from '../services/api';
+import { locationService } from '../services/locationService';
+import { VerificationModal } from '../components/VerificationModal';
+import { Video } from 'expo-av';
 
 
 interface DisasterDetails {
@@ -25,42 +28,141 @@ interface DisasterDetails {
     image_url: string;
     status: string;
     created_at: string;
-    verified_count: number;
-    rejected_count: number;
+    verification_count_yes: number;
+    verification_count_no: number;
     ai_analysis: any;
+}
+
+interface VerificationStatus {
+    has_verified: boolean;
+    is_confirmed: boolean | null;
+    can_verify: boolean;
+    reason: string | null;
 }
 
 export const DisasterDetailsScreen: React.FC<{ route: any; navigation: any }> = ({
     route,
     navigation,
 }) => {
-    
     const { t } = useLanguage();
-    const { disasterId } = route.params;
+    const { disasterId, showVerification } = route.params || {};
     const [disaster, setDisaster] = useState<DisasterDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [API_BASE_URL, setAPI_BASE_URL] = useState<string | null>(null);
 
-    useEffect(()=>{
+    // Verification state
+    const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null);
+    const [showVerifyModal, setShowVerifyModal] = useState(false);
+    const [verifyLoading, setVerifyLoading] = useState(false);
+    const [distance, setDistance] = useState<number | null>(null);
+    const isVideo = (url: string) => {
+        return url.endsWith('.mp4') || url.endsWith('.mov') || url.endsWith('.mkv') || url.includes('video');
+    };
+
+    useEffect(() => {
         const loadApiBaseUrl = async () => {
             const api = await getAPIBaseURL();
             setAPI_BASE_URL(api);
-        }
+        };
         loadApiBaseUrl();
         loadDisasterDetails();
+        loadVerificationStatus();
+        calculateDistance();
     }, []);
+
+    const calculateDistance = async () => {
+        if (!disaster) return;
+        const coords = await locationService.getCoordinates();
+        if (coords) {
+            const dist = locationService.calculateDistance(
+                coords.latitude,
+                coords.longitude,
+                disaster.latitude,
+                disaster.longitude
+            );
+            setDistance(dist);
+        }
+    };
+
+    // Recalculate distance when disaster is loaded
+    useEffect(() => {
+        if (disaster) {
+            calculateDistance();
+        }
+    }, [disaster]);
+
+    // Show verification modal if navigated with showVerification flag
+    useEffect(() => {
+        if (showVerification && verificationStatus?.can_verify && disaster) {
+            setShowVerifyModal(true);
+        }
+    }, [showVerification, verificationStatus, disaster]);
 
     const loadDisasterDetails = async () => {
         const api = await apiClient();
         try {
             const response = await api.get(`/api/disasters/${disasterId}`);
-            setDisaster(response.data);
+            let data = response.data;
+
+            // Parse ai_analysis if it's a string
+            if (typeof data.ai_analysis === 'string') {
+                try {
+                    data.ai_analysis = JSON.parse(data.ai_analysis);
+                } catch (e) {
+                    console.error("Failed to parse ai_analysis JSON:", e);
+                }
+            }
+            // Double parse check (sometimes it's double stringified)
+            if (typeof data.ai_analysis === 'string') {
+                try {
+                    data.ai_analysis = JSON.parse(data.ai_analysis);
+                } catch (e) {
+                    // ignore
+                }
+            }
+
+            setDisaster(data);
         } catch (error) {
             console.error('Error loading disaster details:', error);
             Alert.alert(t('error'), 'Failed to load disaster details');
         } finally {
             setLoading(false);
         }
+    };
+
+    const loadVerificationStatus = async () => {
+        try {
+            const api = await apiClient();
+            const coords = await locationService.getCoordinates();
+
+            let url = `/api/disasters/${disasterId}/my-verification`;
+            if (coords) {
+                url += `?lat=${coords.latitude}&lng=${coords.longitude}`;
+            }
+
+            const response = await api.get(url);
+            setVerificationStatus(response.data);
+        } catch (error) {
+            console.log('Could not load verification status:', error);
+        }
+    };
+
+    const handleVerified = (isConfirmed: boolean) => {
+        // Refresh data after verification
+        loadDisasterDetails();
+        setVerificationStatus({
+            has_verified: true,
+            is_confirmed: isConfirmed,
+            can_verify: false,
+            reason: 'You have already verified this disaster'
+        });
+
+        Alert.alert(
+            isConfirmed ? '✅ Verified' : '❌ Rejected',
+            isConfirmed
+                ? 'Thank you for verifying this disaster report.'
+                : 'Thank you for your response.'
+        );
     };
 
     const getStatusColor = (status: string) => {
@@ -130,14 +232,72 @@ export const DisasterDetailsScreen: React.FC<{ route: any; navigation: any }> = 
                     </View>
                 </View>
 
+                {/* Verification Section */}
+                {verificationStatus && (
+                    <View style={styles.verificationSection}>
+                        {verificationStatus.has_verified ? (
+                            <View style={[
+                                styles.verifiedBanner,
+                                { backgroundColor: verificationStatus.is_confirmed ? '#e8f5e9' : '#ffebee' }
+                            ]}>
+                                <Text style={[
+                                    styles.verifiedText,
+                                    { color: verificationStatus.is_confirmed ? '#2e7d32' : '#c62828' }
+                                ]}>
+                                    {verificationStatus.is_confirmed
+                                        ? '✅ You verified this disaster'
+                                        : '❌ You rejected this report'}
+                                </Text>
+                            </View>
+                        ) : verificationStatus.can_verify ? (
+                            <View style={styles.verifyPrompt}>
+                                <Text style={styles.verifyPromptText}>
+                                    🔔 Can you verify this disaster?
+                                </Text>
+                                <View style={styles.verifyButtons}>
+                                    <TouchableOpacity
+                                        style={[styles.verifyBtn, styles.verifyBtnYes]}
+                                        onPress={() => setShowVerifyModal(true)}
+                                    >
+                                        <Text style={styles.verifyBtnText}>✅ Verify</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.verifyBtn, styles.verifyBtnNo]}
+                                        onPress={() => setShowVerifyModal(true)}
+                                    >
+                                        <Text style={styles.verifyBtnText}>❌ Reject</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ) : verificationStatus.reason ? (
+                            <View style={styles.cannotVerifyBanner}>
+                                <Text style={styles.cannotVerifyText}>
+                                    ℹ️ {verificationStatus.reason}
+                                </Text>
+                            </View>
+                        ) : null}
+                    </View>
+                )}
+
                 {/* Image */}
                 <View style={styles.imageContainer}>
-                    <Image
-                        source={{ uri: `${API_BASE_URL}${disaster.image_url}` }}
-                        style={styles.image}
-                        resizeMode="cover"
-                    />
+                    {isVideo(disaster.image_url) ? (
+                        <Video
+                            source={{ uri: `${API_BASE_URL}${disaster.image_url}` }}
+                            style={styles.video}
+                            useNativeControls
+                            
+                            isLooping
+                        />
+                    ) : (
+                        <Image
+                            source={{ uri: `${API_BASE_URL}${disaster.image_url}` }}
+                            style={styles.image}
+                            resizeMode="cover"
+                        />
+                    )}
                 </View>
+
 
                 {/* Location & Time */}
                 <View style={styles.card}>
@@ -146,6 +306,14 @@ export const DisasterDetailsScreen: React.FC<{ route: any; navigation: any }> = 
                         <Text style={styles.infoLabel}>📍 Location:</Text>
                         <Text style={styles.infoValue}>{disaster.location_name}</Text>
                     </View>
+                    {distance !== null && (
+                        <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>📏 Distance:</Text>
+                            <Text style={styles.infoValue}>
+                                {locationService.formatDistance(distance)} away
+                            </Text>
+                        </View>
+                    )}
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>🕐 Reported:</Text>
                         <Text style={styles.infoValue}>
@@ -171,11 +339,11 @@ export const DisasterDetailsScreen: React.FC<{ route: any; navigation: any }> = 
                     </View>
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>✅ Verified By:</Text>
-                        <Text style={styles.infoValue}>{disaster.verified_count} people</Text>
+                        <Text style={styles.infoValue}>{disaster.verification_count_yes} people</Text>
                     </View>
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>❌ Rejected By:</Text>
-                        <Text style={styles.infoValue}>{disaster.rejected_count} people</Text>
+                        <Text style={styles.infoValue}>{disaster.verification_count_no} people</Text>
                     </View>
                 </View>
 
@@ -221,6 +389,20 @@ export const DisasterDetailsScreen: React.FC<{ route: any; navigation: any }> = 
                     </View>
                 )}
             </ScrollView>
+
+            {/* Verification Modal */}
+            {disaster && (
+                <VerificationModal
+                    visible={showVerifyModal}
+                    disasterId={disaster.id}
+                    disasterLocation={disaster.location_name}
+                    disasterLat={disaster.latitude}
+                    disasterLng={disaster.longitude}
+                    createdAt={disaster.created_at}
+                    onClose={() => setShowVerifyModal(false)}
+                    onVerified={handleVerified}
+                />
+            )}
         </SafeAreaView>
     );
 };
@@ -241,6 +423,46 @@ const styles = StyleSheet.create({
     statusContainer: { padding: 16, paddingBottom: 0, alignItems: 'center' },
     statusBadge: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20 },
     statusText: { fontSize: 14, fontWeight: 'bold', color: '#fff' },
+
+    // Verification section styles
+    verificationSection: { margin: 16, marginBottom: 0 },
+    verifiedBanner: {
+        padding: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    verifiedText: { fontSize: 16, fontWeight: '600' },
+    verifyPrompt: {
+        backgroundColor: '#fff3e0',
+        padding: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#ff9800',
+    },
+    verifyPromptText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#e65100',
+        textAlign: 'center',
+        marginBottom: 12,
+    },
+    verifyButtons: { flexDirection: 'row', gap: 12 },
+    verifyBtn: {
+        flex: 1,
+        padding: 14,
+        borderRadius: 10,
+        alignItems: 'center',
+    },
+    verifyBtnYes: { backgroundColor: '#4caf50' },
+    verifyBtnNo: { backgroundColor: '#f44336' },
+    verifyBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+    cannotVerifyBanner: {
+        backgroundColor: '#f5f5f5',
+        padding: 12,
+        borderRadius: 8,
+    },
+    cannotVerifyText: { fontSize: 14, color: '#666', textAlign: 'center' },
+
     imageContainer: { margin: 16, borderRadius: 12, overflow: 'hidden', backgroundColor: '#ddd' },
     image: { width: '100%', height: 250 },
     card: { backgroundColor: '#fff', margin: 16, marginTop: 0, padding: 16, borderRadius: 12 },
@@ -259,4 +481,10 @@ const styles = StyleSheet.create({
         borderColor: '#ffc107',
     },
     mockBadgeText: { fontSize: 14, color: '#ff6600', textAlign: 'center' },
+    video: {
+    width: '100%',
+    height: 300,
+    backgroundColor: '#000',
+},
+
 });

@@ -224,6 +224,19 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                     </TouchableOpacity>
                 </View>
 
+                {/* Debug Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Debug</Text>
+                    <TouchableOpacity style={styles.actionButton} onPress={() => vibrationService.emergencyPattern()}>
+                        <Text style={styles.actionButtonIcon}>📳</Text>
+                        <Text style={styles.actionButtonText}>Test Shake</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('EmergencyCamera')}>
+                        <Text style={styles.actionButtonIcon}>📸</Text>
+                        <Text style={styles.actionButtonText}>Test Emergency Camera</Text>
+                    </TouchableOpacity>
+                </View>
+
                 {/* Battery Optimization Warning (Android Only) */}
                 {Platform.OS === 'android' && (
                     <View style={styles.section}>

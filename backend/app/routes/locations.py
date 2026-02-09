@@ -7,6 +7,7 @@ from ..database import get_db
 from ..models import Device, DisasterReport, UserLocationLog, DisasterAlertStatus
 from ..schemas import LocationUpdate, RadiusCheckResponse
 from ..services.alert_service import AlertService
+from ..dependencies import get_current_authority
 
 router = APIRouter(prefix="/api/locations", tags=["locations"])
 
@@ -124,6 +125,7 @@ async def check_radius(
 
 @router.get("/emergency-zones")
 async def get_emergency_zones(
+    _: object = Depends(get_current_authority),
     db: Session = Depends(get_db)
 ):
     """
@@ -147,3 +149,52 @@ async def get_emergency_zones(
         }
         for d in active_emergencies
     ]
+
+
+@router.get("/devices")
+async def get_devices_in_danger_zones(
+    in_danger_zone: bool = True,
+    _: object = Depends(get_current_authority),
+    db: Session = Depends(get_db)
+):
+    """
+    Get devices that are currently in or near danger zones.
+    
+    Returns latest location for each device that has reported location.
+    Used by authority command center to track people in danger.
+    """
+    from sqlalchemy import func, distinct
+    
+    # Get the most recent location for each device
+    # Subquery to get max timestamp per device
+    subquery = db.query(
+        UserLocationLog.device_id,
+        func.max(UserLocationLog.created_at).label('max_time')
+    ).group_by(UserLocationLog.device_id).subquery()
+    
+    # Join to get full records
+    query = db.query(UserLocationLog).join(
+        subquery,
+        (UserLocationLog.device_id == subquery.c.device_id) &
+        (UserLocationLog.created_at == subquery.c.max_time)
+    )
+    
+    # Filter by danger zone status
+    if in_danger_zone:
+        query = query.filter(UserLocationLog.in_danger_zone == True)
+    
+    locations = query.all()
+    
+    return [
+        {
+            "device_id": loc.device_id,
+            "latitude": loc.latitude,
+            "longitude": loc.longitude,
+            "last_updated": loc.created_at.isoformat(),
+            "in_danger_zone": loc.in_danger_zone,
+            "distance_km": loc.distance_km,
+            "disaster_id": loc.disaster_report_id
+        }
+        for loc in locations
+    ]
+

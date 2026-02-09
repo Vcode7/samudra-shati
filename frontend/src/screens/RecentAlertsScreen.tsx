@@ -12,15 +12,19 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
 import { apiClient } from '../services/api';
+import { locationService } from '../services/locationService';
 
 interface DisasterAlert {
     id: number;
     location_name: string;
+    latitude: number;
+    longitude: number;
     severity_level: number;
     created_at: string;
     status: string;
-    distance_km: number;
-    verification_count: number;
+    distance_km: number | null;
+    verification_count_yes: number;
+    verification_count_no: number;
 }
 
 export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -30,10 +34,19 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
     const [refreshing, setRefreshing] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
     useEffect(() => {
+        loadLocation();
         loadAlerts();
     }, []);
+
+    const loadLocation = async () => {
+        const coords = await locationService.getCoordinates();
+        if (coords) {
+            setUserLocation(coords);
+        }
+    };
 
     const loadAlerts = async (pageNum: number = 1) => {
         try {
@@ -56,6 +69,7 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
 
     const handleRefresh = () => {
         setRefreshing(true);
+        loadLocation();
         loadAlerts(1);
     };
 
@@ -68,13 +82,13 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'VERIFIED':
-                return '#4caf50';
+                return '#f44336';
             case 'PENDING':
                 return '#ff9800';
             case 'FALSE_ALARM':
-                return '#f44336';
-            default:
                 return '#999';
+            default:
+                return '#4caf50';
         }
     };
 
@@ -91,40 +105,71 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
         }
     };
 
-    const renderAlert = ({ item }: { item: DisasterAlert }) => (
-        <TouchableOpacity
-            style={styles.alertCard}
-            onPress={() => {
-                vibrationService.light();
-                navigation.navigate('DisasterDetails', { disasterId: item.id });
-            }}
-        >
-            <View style={styles.alertHeader}>
-                <View style={styles.alertTitleContainer}>
-                    <Text style={styles.alertTitle}>{item.location_name}</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-                        <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
+    const isWithin30Min = (createdAt: string) => {
+        const created = new Date(createdAt);
+        const now = new Date();
+        return (now.getTime() - created.getTime()) / (1000 * 60) <= 30;
+    };
+
+    const renderAlert = ({ item }: { item: DisasterAlert }) => {
+        const canVerify = item.status === 'PENDING' && isWithin30Min(item.created_at);
+
+        let displayDistance = item.distance_km;
+        if (displayDistance === null && userLocation) {
+            displayDistance = locationService.calculateDistance(
+                userLocation.latitude,
+                userLocation.longitude,
+                item.latitude,
+                item.longitude
+            );
+        }
+
+        return (
+            <TouchableOpacity
+                style={styles.alertCard}
+                onPress={() => {
+                    vibrationService.light();
+                    navigation.navigate('DisasterDetails', {
+                        disasterId: item.id,
+                        showVerification: canVerify
+                    });
+                }}
+            >
+                <View style={styles.alertHeader}>
+                    <View style={styles.alertTitleContainer}>
+                        <Text style={styles.alertTitle}>{item.location_name}</Text>
+                        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+                            <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
+                        </View>
                     </View>
+                    <Text style={styles.severityText}>Severity: {item.severity_level}/10</Text>
                 </View>
-                <Text style={styles.severityText}>Severity: {item.severity_level}/10</Text>
-            </View>
 
-            <View style={styles.alertDetails}>
-                <Text style={styles.detailText}>
-                    📏 {item.distance_km < 1
-                        ? `${Math.round(item.distance_km * 1000)}m away`
-                        : `${item.distance_km?.toFixed(1)}km away`}
-                </Text>
-                <Text style={styles.detailText}>
-                    ✅ {item.verification_count} verification{item.verification_count !== 1 ? 's' : ''}
-                </Text>
-            </View>
+                <View style={styles.alertDetails}>
+                    <Text style={styles.detailText}>
+                        📏 {displayDistance !== null
+                            ? locationService.formatDistance(displayDistance) + ' away'
+                            : 'Unknown distance'}
+                    </Text>
+                    <Text style={styles.detailText}>
+                        ✅ {item.verification_count_yes + item.verification_count_no} verification{(item.verification_count_yes + item.verification_count_no) !== 1 ? 's' : ''}
+                    </Text>
+                </View>
 
-            <Text style={styles.timeText}>
-                {new Date(item.created_at).toLocaleString()}
-            </Text>
-        </TouchableOpacity>
-    );
+                <View style={styles.bottomRow}>
+                    <Text style={styles.timeText}>
+                        {new Date(item.created_at).toLocaleString()}
+                    </Text>
+
+                    {canVerify && (
+                        <View style={styles.verifyHint}>
+                            <Text style={styles.verifyHintText}>🔔 Tap to verify</Text>
+                        </View>
+                    )}
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     if (loading && alerts.length === 0) {
         return (
@@ -203,7 +248,15 @@ const styles = StyleSheet.create({
     severityText: { fontSize: 14, color: '#ff6600', fontWeight: '600' },
     alertDetails: { flexDirection: 'row', gap: 16, marginBottom: 8 },
     detailText: { fontSize: 14, color: '#666' },
+    bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     timeText: { fontSize: 12, color: '#999' },
+    verifyHint: {
+        backgroundColor: '#fff3e0',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8
+    },
+    verifyHintText: { fontSize: 12, color: '#e65100', fontWeight: '600' },
     emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
     emptyText: { fontSize: 16, color: '#999' },
     footerLoader: { paddingVertical: 20, alignItems: 'center' },

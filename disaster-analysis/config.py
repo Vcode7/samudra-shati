@@ -1,64 +1,80 @@
 """
 Configuration for Disaster Analysis Service
+
+3-Model CNN Pipeline Configuration
 """
 import os
 from typing import List, Dict
 
-# Disaster classification labels
-DISASTER_LABELS: List[str] = [
-    "coastal flooding with water covering streets and buildings",
-    "cyclone damage with destroyed structures and debris",
-    "dangerous high ocean waves crashing on shore",
-    "boat accident or capsized vessel in water",
-    "normal peaceful coastal scene with calm water",
-]
+# =============================================================================
+# Model Checkpoints
+# =============================================================================
+CHECKPOINT_DIR = os.path.join(os.path.dirname(__file__), "checkpoints")
 
-# Simplified labels for output
-LABEL_MAPPING: Dict[str, str] = {
-    "coastal flooding with water covering streets and buildings": "coastal flooding",
-    "cyclone damage with destroyed structures and debris": "cyclone damage",
-    "dangerous high ocean waves crashing on shore": "high ocean waves",
-    "boat accident or capsized vessel in water": "boat accident",
-    "normal peaceful coastal scene with calm water": "normal coastal scene",
-}
+# Binary classifier: disaster / not_disaster
+BINARY_CHECKPOINT = os.path.join(CHECKPOINT_DIR, "binary_epoch_4.pt")
 
-# Which labels indicate disaster
-DISASTER_LABELS_SET = {
-    "coastal flooding",
-    "cyclone damage",
-    "high ocean waves",
-    "boat accident",
-}
+# Type classifier: flood / cyclone / fire / earthquake / other
+TYPE_CHECKPOINT = os.path.join(CHECKPOINT_DIR, "type_epoch_7.pt")
 
-# Severity thresholds based on confidence
-SEVERITY_THRESHOLDS: Dict[str, float] = {
-    "CRITICAL": 0.90,
-    "HIGH": 0.75,
-    "MEDIUM": 0.50,
-    "LOW": 0.30,
-}
+# Severity classifier: low / medium / high
+SEVERITY_CHECKPOINT = os.path.join(CHECKPOINT_DIR, "severity_epoch_3.pt")
 
-# Severity by disaster type (base severity)
-TYPE_SEVERITY: Dict[str, str] = {
-    "coastal flooding": "HIGH",
-    "cyclone damage": "CRITICAL",
-    "high ocean waves": "MEDIUM",
-    "boat accident": "HIGH",
-    "normal coastal scene": "LOW",
-}
+# =============================================================================
+# Label Mappings (MUST match training order)
+# =============================================================================
 
-# Model settings
-CLIP_MODEL: str = os.getenv("CLIP_MODEL", "ViT-B/32")
-USE_GPU: bool = os.getenv("USE_GPU", "auto").lower() != "false"
+# Binary labels - index 0: not_disaster, index 1: disaster
+BINARY_LABELS: List[str] = ["not_disaster", "disaster"]
 
-# Video processing
-VIDEO_FPS: int = int(os.getenv("VIDEO_FPS", "1"))  # Frames per second to extract
+# Type labels - 5 classes
+TYPE_LABELS: List[str] = ["flood", "cyclone", "fire", "earthquake", "other"]
+
+# Severity labels - 3 classes
+SEVERITY_LABELS: List[str] = ["low", "medium", "high"]
+
+# =============================================================================
+# Video Processing
+# =============================================================================
+VIDEO_FRAME_STRIDE: int = int(os.getenv("VIDEO_FRAME_STRIDE", "30"))  # Extract every 30th frame
 MAX_FRAMES: int = int(os.getenv("MAX_FRAMES", "30"))  # Max frames to analyze
 
+# =============================================================================
+# Device Settings
+# =============================================================================
+USE_GPU: bool = os.getenv("USE_GPU", "auto").lower() != "false"
+
+# =============================================================================
 # Logging
+# =============================================================================
 LOG_PREDICTIONS: bool = os.getenv("LOG_PREDICTIONS", "true").lower() == "true"
 LOG_DIR: str = os.getenv("LOG_DIR", "./logs")
 
-# Server
+# =============================================================================
+# Server Configuration
+# =============================================================================
 HOST: str = os.getenv("HOST", "0.0.0.0")
 PORT: int = int(os.getenv("PORT", "8001"))
+
+# =============================================================================
+# Severity Mapping (for backend compatibility)
+# =============================================================================
+SEVERITY_TO_LEVEL: Dict[str, int] = {
+    "low": 3,
+    "medium": 6,
+    "high": 9,
+}
+
+TYPE_TO_SEVERITY_BASE: Dict[str, str] = {
+    "flood": "high",
+    "cyclone": "high",
+    "fire": "high",
+    "earthquake": "high",
+    "other": "medium",
+}
+
+SEVERITY_THRESHOLDS = {
+    "low": 0.33,
+    "medium": 0.66,
+    "high": 1.0,
+}

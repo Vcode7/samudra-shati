@@ -9,23 +9,24 @@ from typing import List, Optional
 from PIL import Image
 import cv2
 
-from config import VIDEO_FPS, MAX_FRAMES
+from config import VIDEO_FRAME_STRIDE, MAX_FRAMES
 
 
 class FrameExtractor:
     """
     Extracts frames from video files for disaster analysis.
+    Uses stride-based extraction (every Nth frame).
     """
     
-    def __init__(self, fps: int = VIDEO_FPS, max_frames: int = MAX_FRAMES):
+    def __init__(self, frame_stride: int = VIDEO_FRAME_STRIDE, max_frames: int = MAX_FRAMES):
         """
         Initialize frame extractor.
         
         Args:
-            fps: Frames per second to extract (default 1)
+            frame_stride: Extract every Nth frame (default 30)
             max_frames: Maximum frames to extract (default 30)
         """
-        self.fps = fps
+        self.frame_stride = frame_stride
         self.max_frames = max_frames
     
     def extract_from_file(self, video_path: str) -> List[Image.Image]:
@@ -75,6 +76,7 @@ class FrameExtractor:
     def _extract_frames(self, cap: cv2.VideoCapture) -> List[Image.Image]:
         """
         Internal method to extract frames from VideoCapture.
+        Uses stride-based extraction (every Nth frame).
         """
         frames: List[Image.Image] = []
         
@@ -84,10 +86,7 @@ class FrameExtractor:
         duration = total_frames / video_fps if video_fps > 0 else 0
         
         print(f"[FrameExtractor] Video: {duration:.1f}s, {total_frames} frames, {video_fps:.1f} FPS")
-        
-        # Calculate frame interval
-        frame_interval = int(video_fps / self.fps) if video_fps > 0 else 1
-        frame_interval = max(1, frame_interval)
+        print(f"[FrameExtractor] Using stride={self.frame_stride}, max_frames={self.max_frames}")
         
         frame_idx = 0
         extracted = 0
@@ -98,8 +97,8 @@ class FrameExtractor:
             if not ret:
                 break
             
-            # Extract at interval
-            if frame_idx % frame_interval == 0:
+            # Extract every Nth frame (stride-based)
+            if frame_idx % self.frame_stride == 0:
                 # Convert BGR to RGB
                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 pil_image = Image.fromarray(rgb_frame)
@@ -108,7 +107,7 @@ class FrameExtractor:
             
             frame_idx += 1
         
-        print(f"[FrameExtractor] Extracted {len(frames)} frames")
+        print(f"[FrameExtractor] Extracted {len(frames)} frames from {frame_idx} total")
         return frames
     
     def get_video_info(self, video_path: str) -> dict:

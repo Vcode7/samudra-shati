@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Body
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import json
@@ -11,7 +11,7 @@ from ..schemas import (
     VerificationCreate, VerificationResponse as VerificationResponseSchema,
     VerificationWithEmergencyResponse, EmergencyStatusResponse
 )
-from ..dependencies import get_current_user
+from ..dependencies import get_current_user, get_current_authority
 from ..services.image_service import ImageService
 from ..services.notification_service import NotificationService
 from ..services.alert_service import AlertService
@@ -19,7 +19,7 @@ from ..services.alert_service import AlertService
 router = APIRouter(prefix="/api/disasters", tags=["disasters"])
 
 
-@router.post("/report", response_model=DisasterReportResponse)
+@router.post("/report", response_model=DisasterReportResponse,)
 async def create_disaster_report(
     latitude: float = Form(...),
     longitude: float = Form(...),
@@ -28,6 +28,7 @@ async def create_disaster_report(
     image: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
+
 ):
     """
     Submit a disaster report with image
@@ -61,19 +62,23 @@ async def create_disaster_report(
     image_content = await image.read()
     
     # Check file size
-    max_size = 10 * 1024 * 1024  # 10MB
+    max_size = 100 * 1024 * 1024  # 100MB
     if len(image_content) > max_size:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Image file too large (max 10MB)"
+            detail="Image file too large (max 100MB)"
         )
     
     # Save image
     image_filename = await ImageService.save_image(image_content, image.filename)
     image_url = ImageService.get_image_url(image_filename)
     
-    # Analyze image (MOCK)
-    ai_analysis = ImageService.analyze_image(image_filename)
+    # Analyze image using AI service
+    ai_analysis = await ImageService.analyze_image_async(
+        image_path=image_filename,
+        file_content=image_content,
+        content_type=image.content_type
+    )
     
     # Create disaster report
     disaster_report = DisasterReport(
@@ -163,8 +168,23 @@ async def get_active_disasters(
         DisasterReport.status.in_([DisasterStatus.PENDING, DisasterStatus.VERIFIED])
     ).order_by(DisasterReport.created_at.desc()).limit(50).all()
     
-    return disasters
+    results = []
+    for d in disasters:
+        dt = d.created_at
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
 
+        created_at = dt.isoformat().replace("+00:00", "Z")
+        results.append({
+            **d.__dict__,
+            "created_at": created_at,
+            "distance_km": None,
+        })
+    
+    return results
+
+
+from datetime import timezone
 
 @router.get("/recent", response_model=List[DisasterReportResponse])
 async def get_recent_disasters(
@@ -172,14 +192,28 @@ async def get_recent_disasters(
     limit: int = 20,
     db: Session = Depends(get_db)
 ):
-    """
-    Get recent disaster reports with pagination
-    """
-    disasters = db.query(DisasterReport).order_by(
-        DisasterReport.created_at.desc()
-    ).offset(skip).limit(limit).all()
-    
-    return disasters
+    disasters = (
+        db.query(DisasterReport)
+        .order_by(DisasterReport.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    results = []
+    for d in disasters:
+        dt = d.created_at
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+
+        created_at = dt.isoformat().replace("+00:00", "Z")
+        results.append({
+            **d.__dict__,
+            "created_at": created_at,
+            "distance_km": None,  # frontend fallback will handle
+        })
+
+    return results
 
 
 @router.get("/{disaster_id}", response_model=DisasterReportResponse)
@@ -200,7 +234,16 @@ async def get_disaster_details(
             detail="Disaster report not found"
         )
     
-    return disaster
+    dt = disaster.created_at
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    created_at = dt.isoformat().replace("+00:00", "Z")
+    
+    return {
+        **disaster.__dict__,
+        "created_at": created_at,
+        "distance_km": None
+    }
 
 
 @router.post("/{disaster_id}/verify", response_model=VerificationResponseSchema)
@@ -233,7 +276,16 @@ async def verify_disaster(
     
     # NEW: Check if disaster report is less than 30 minutes old
     from datetime import datetime, timedelta
-    report_age = datetime.utcnow() - disaster.created_at
+    
+    # Ensure disaster.created_at is timezone-aware for comparison if needed
+    # But usually datetime.utcnow() is naive, so we compare naive to naive
+    dt = disaster.created_at
+    if dt.tzinfo is not None:
+        current_time = datetime.now(timezone.utc)
+    else:
+        current_time = datetime.utcnow()
+        
+    report_age = current_time - dt
     if report_age > timedelta(minutes=30):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -361,6 +413,15 @@ async def verify_disaster(
     db.refresh(verification)
     
     # Return verification with emergency status
+    # Fix timezone for created_at
+    v_dt = verification.created_at
+    if v_dt.tzinfo is None:
+        v_dt = v_dt.replace(tzinfo=timezone.utc)
+    
+    # We return Pydantic model here, need to update the object or return dict
+    # But schema expects datetime, so modifying the object in place works if schema config allows
+    verification.created_at = v_dt
+    
     return VerificationWithEmergencyResponse(
         id=verification.id,
         disaster_report_id=verification.disaster_report_id,
@@ -370,6 +431,88 @@ async def verify_disaster(
         emergency_triggered=emergency_triggered,
         total_confirmations=disaster.verification_count_yes
     )
+
+
+@router.get("/{disaster_id}/my-verification")
+async def get_my_verification_status(
+    disaster_id: int,
+    lat: Optional[float] = None,
+    lng: Optional[float] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Check if current user has verified this disaster and if they can verify.
+    
+    Returns:
+        - has_verified: whether user has already submitted a verification
+        - is_confirmed: if verified, was it a confirmation or rejection
+        - can_verify: whether user can still verify (status pending, <30min, nearby if coords provided)
+        - reason: if cannot verify, explains why
+    """
+    from datetime import datetime, timedelta
+    
+    # Get disaster
+    disaster = db.query(DisasterReport).filter(
+        DisasterReport.id == disaster_id
+    ).first()
+    
+    if not disaster:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Disaster report not found"
+        )
+    
+    # Check if user already verified
+    existing = db.query(VerificationResponse).filter(
+        VerificationResponse.disaster_report_id == disaster_id,
+        VerificationResponse.user_id == current_user.id
+    ).first()
+    
+    has_verified = existing is not None
+    is_confirmed = existing.is_confirmed if existing else None
+    
+    # Check if can verify
+    can_verify = True
+    reason = None
+    
+    # Fix timezone for comparison
+    dt = disaster.created_at
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+        current_time_utc = datetime.now(timezone.utc)
+    else:
+        current_time_utc = datetime.now(timezone.utc)
+        
+    created_at_iso = dt.isoformat().replace("+00:00", "Z")
+    
+    if has_verified:
+        can_verify = False
+        reason = "You have already verified this disaster"
+    elif disaster.status != DisasterStatus.PENDING:
+        can_verify = False
+        reason = f"Disaster status is {disaster.status.value}"
+    else:
+        # Check time
+        report_age = current_time_utc - dt
+        if report_age > timedelta(minutes=30):
+            can_verify = False
+            reason = "Disaster report is older than 30 minutes"
+        elif lat is not None and lng is not None:
+            # Check distance
+            distance = AlertService.calculate_distance(lat, lng, disaster.latitude, disaster.longitude)
+            if distance > 10.0:
+                can_verify = False
+                reason = f"You are {distance:.1f}km away (must be within 10km)"
+    
+    return {
+        "has_verified": has_verified,
+        "is_confirmed": is_confirmed,
+        "can_verify": can_verify,
+        "reason": reason,
+        "disaster_status": disaster.status.value,
+        "disaster_created_at": created_at_iso
+    }
 
 
 @router.get("/nearby", response_model=List[DisasterReportResponse])
@@ -400,12 +543,76 @@ async def get_nearby_disasters(
         )
         
         if distance <= radius_km:
-            nearby_disasters.append(disaster)
+            # Fix timezone
+            dt = disaster.created_at
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            created_at = dt.isoformat().replace("+00:00", "Z")
+            
+            # Create dict with fixed time
+            disaster_dict = {
+                **disaster.__dict__,
+                "created_at": created_at,
+                "distance_km": None 
+            }
+            nearby_disasters.append(disaster_dict)
+            
+            # Note: We can't sort dictionary by attribute easily if we mix types, 
+            # but here we used `disaster_dict['created_at']` which is a string. 
+            # Original sort used `x.created_at` (datetime).
     
     # Sort by creation time (newest first)
-    nearby_disasters.sort(key=lambda x: x.created_at, reverse=True)
+    # Using the ISO string for sorting works (descending)
+    nearby_disasters.sort(key=lambda x: x['created_at'], reverse=True)
     
     return nearby_disasters[:20]  # Limit to 20 results
+
+
+@router.post("/{disaster_id}/resolve")
+async def resolve_disaster(
+    disaster_id: int,
+    _: object = Depends(get_current_authority),
+    db: Session = Depends(get_db)
+):
+    disaster = db.query(DisasterReport).filter(DisasterReport.id == disaster_id).first()
+    if not disaster:
+        raise HTTPException(status_code=404, detail="Disaster report not found")
+
+    disaster.status = DisasterStatus.RESOLVED
+    disaster.alert_status = DisasterAlertStatus.RESOLVED
+    disaster.resolved_at = datetime.utcnow()
+    db.commit()
+
+    return {
+        "success": True,
+        "disaster_id": disaster.id,
+        "status": disaster.status.value,
+        "alert_status": disaster.alert_status.value,
+    }
+
+
+@router.patch("/{disaster_id}/danger-radius")
+async def update_danger_radius(
+    disaster_id: int,
+    danger_radius_km: float = Body(..., embed=True),
+    _: object = Depends(get_current_authority),
+    db: Session = Depends(get_db)
+):
+    if danger_radius_km <= 0:
+        raise HTTPException(status_code=400, detail="danger_radius_km must be > 0")
+
+    disaster = db.query(DisasterReport).filter(DisasterReport.id == disaster_id).first()
+    if not disaster:
+        raise HTTPException(status_code=404, detail="Disaster report not found")
+
+    disaster.danger_radius_km = float(danger_radius_km)
+    db.commit()
+
+    return {
+        "success": True,
+        "disaster_id": disaster.id,
+        "danger_radius_km": disaster.danger_radius_km,
+    }
 
 
 @router.post("/demo")
@@ -535,3 +742,136 @@ async def cancel_demo_emergency(
     db.commit()
     
     return {"success": True, "message": "Demo emergency cancelled"}
+
+
+# ============ Analytics Endpoints ============
+
+@router.get("/analytics/summary")
+async def get_analytics_summary(
+    db: Session = Depends(get_db)
+):
+    """
+    Get summary statistics for disasters.
+    Returns counts of total, verified, pending, false alarms, and resolved.
+    """
+    from sqlalchemy import func
+    
+    total = db.query(func.count(DisasterReport.id)).scalar() or 0
+    verified = db.query(func.count(DisasterReport.id)).filter(
+        DisasterReport.status == DisasterStatus.VERIFIED
+    ).scalar() or 0
+    pending = db.query(func.count(DisasterReport.id)).filter(
+        DisasterReport.status == DisasterStatus.PENDING
+    ).scalar() or 0
+    false_alarms = db.query(func.count(DisasterReport.id)).filter(
+        DisasterReport.status == DisasterStatus.FALSE_ALARM
+    ).scalar() or 0
+    resolved = db.query(func.count(DisasterReport.id)).filter(
+        DisasterReport.status == DisasterStatus.RESOLVED
+    ).scalar() or 0
+    
+    emergency_active = db.query(func.count(DisasterReport.id)).filter(
+        DisasterReport.alert_status == DisasterAlertStatus.EMERGENCY_ACTIVE
+    ).scalar() or 0
+    
+    return {
+        "total": total,
+        "verified": verified,
+        "pending": pending,
+        "false_alarms": false_alarms,
+        "resolved": resolved,
+        "emergency_active": emergency_active
+    }
+
+
+@router.get("/analytics/by-day")
+async def get_disasters_by_day(
+    days: int = 7,
+    db: Session = Depends(get_db)
+):
+    """
+    Get disaster counts grouped by day for the last N days.
+    """
+    from sqlalchemy import func, cast, Date
+    from datetime import timedelta
+    
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    
+    results = db.query(
+        cast(DisasterReport.created_at, Date).label("date"),
+        func.count(DisasterReport.id).label("count"),
+        func.sum(
+            func.case(
+                (DisasterReport.status == DisasterStatus.VERIFIED, 1),
+                else_=0
+            )
+        ).label("verified"),
+        func.sum(
+            func.case(
+                (DisasterReport.status == DisasterStatus.FALSE_ALARM, 1),
+                else_=0
+            )
+        ).label("false_alarms")
+    ).filter(
+        DisasterReport.created_at >= cutoff
+    ).group_by(
+        cast(DisasterReport.created_at, Date)
+    ).order_by(
+        cast(DisasterReport.created_at, Date)
+    ).all()
+    
+    return [
+        {
+            "date": str(r.date),
+            "count": r.count,
+            "verified": r.verified or 0,
+            "false_alarms": r.false_alarms or 0
+        }
+        for r in results
+    ]
+
+
+@router.get("/analytics/response-time")
+async def get_average_response_time(
+    db: Session = Depends(get_db)
+):
+    """
+    Get average response time metrics.
+    Response time = time from report creation to verification/resolution.
+    """
+    from sqlalchemy import func
+    
+    # Get disasters that have been resolved with resolved_at timestamp
+    resolved_disasters = db.query(DisasterReport).filter(
+        DisasterReport.resolved_at.isnot(None)
+    ).all()
+    
+    if not resolved_disasters:
+        return {
+            "average_response_minutes": None,
+            "fastest_response_minutes": None,
+            "slowest_response_minutes": None,
+            "total_resolved": 0
+        }
+    
+    response_times = []
+    for d in resolved_disasters:
+        if d.resolved_at and d.created_at:
+            diff = d.resolved_at - d.created_at
+            response_times.append(diff.total_seconds() / 60)  # in minutes
+    
+    if not response_times:
+        return {
+            "average_response_minutes": None,
+            "fastest_response_minutes": None,
+            "slowest_response_minutes": None,
+            "total_resolved": 0
+        }
+    
+    return {
+        "average_response_minutes": round(sum(response_times) / len(response_times), 2),
+        "fastest_response_minutes": round(min(response_times), 2),
+        "slowest_response_minutes": round(max(response_times), 2),
+        "total_resolved": len(response_times)
+    }
+

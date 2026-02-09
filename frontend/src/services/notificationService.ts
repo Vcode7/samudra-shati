@@ -254,22 +254,22 @@ export const notificationService = {
                     sound: 'default',
                     enableVibrate: true,
                 });
-
-                // Set up notification categories with action buttons
-                await Notifications.setNotificationCategoryAsync('verification', [
-                    {
-                        identifier: ACTION_VERIFY,
-                        buttonTitle: '✅ Verify',
-                        options: { opensAppToForeground: false },
-                    },
-                    {
-                        identifier: ACTION_REJECT,
-                        buttonTitle: '❌ Reject',
-                        options: { opensAppToForeground: false },
-                    },
-                ]);
-
             }
+
+            // Set up notification categories with action buttons
+            // Note: categories must be registered on iOS as well for action buttons to show.
+            await Notifications.setNotificationCategoryAsync('verification', [
+                {
+                    identifier: ACTION_VERIFY,
+                    buttonTitle: '✅ Verify',
+                    options: { opensAppToForeground: false },
+                },
+                {
+                    identifier: ACTION_REJECT,
+                    buttonTitle: '❌ Reject',
+                    options: { opensAppToForeground: false },
+                },
+            ]);
 
             // Try to get push token
             try {
