@@ -220,9 +220,9 @@ export const DisasterDetailsScreen: React.FC<{ route: any; navigation: any }> = 
             <ScrollView style={styles.scrollView}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackButton}>
-                        <Text style={styles.headerBackButtonText}>← Back</Text>
+                        <Text style={styles.headerBackButtonText}>← {t('back')}</Text>
                     </TouchableOpacity>
-                    <Text style={styles.title}>Disaster Details</Text>
+                    <Text style={styles.title}>{t('disaster_details')}</Text>
                 </View>
 
                 {/* Status Badge */}
@@ -245,27 +245,27 @@ export const DisasterDetailsScreen: React.FC<{ route: any; navigation: any }> = 
                                     { color: verificationStatus.is_confirmed ? '#2e7d32' : '#c62828' }
                                 ]}>
                                     {verificationStatus.is_confirmed
-                                        ? '✅ You verified this disaster'
-                                        : '❌ You rejected this report'}
+                                        ? t('you_verified_disaster')
+                                        : t('you_rejected_report')}
                                 </Text>
                             </View>
                         ) : verificationStatus.can_verify ? (
                             <View style={styles.verifyPrompt}>
                                 <Text style={styles.verifyPromptText}>
-                                    🔔 Can you verify this disaster?
+                                    🔔 {t('can_you_verify')}
                                 </Text>
                                 <View style={styles.verifyButtons}>
                                     <TouchableOpacity
                                         style={[styles.verifyBtn, styles.verifyBtnYes]}
                                         onPress={() => setShowVerifyModal(true)}
                                     >
-                                        <Text style={styles.verifyBtnText}>✅ Verify</Text>
+                                        <Text style={styles.verifyBtnText}>✅ {t('verify')}</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={[styles.verifyBtn, styles.verifyBtnNo]}
                                         onPress={() => setShowVerifyModal(true)}
                                     >
-                                        <Text style={styles.verifyBtnText}>❌ Reject</Text>
+                                        <Text style={styles.verifyBtnText}>❌ {t('reject')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -286,7 +286,7 @@ export const DisasterDetailsScreen: React.FC<{ route: any; navigation: any }> = 
                             source={{ uri: `${API_BASE_URL}${disaster.image_url}` }}
                             style={styles.video}
                             useNativeControls
-                            
+
                             isLooping
                         />
                     ) : (
@@ -482,9 +482,9 @@ const styles = StyleSheet.create({
     },
     mockBadgeText: { fontSize: 14, color: '#ff6600', textAlign: 'center' },
     video: {
-    width: '100%',
-    height: 300,
-    backgroundColor: '#000',
-},
+        width: '100%',
+        height: 300,
+        backgroundColor: '#000',
+    },
 
 });

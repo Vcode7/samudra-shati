@@ -65,7 +65,7 @@ export const EmergencyCameraScreen: React.FC<{ navigation: any }> = ({ navigatio
       vibrationService.success();
 
       const videoData = await (cameraRef.current as any).recordAsync({
-        maxDuration: 2,  
+        maxDuration: 2,
         quality: '480p',
         mute: true,
       });
@@ -75,7 +75,7 @@ export const EmergencyCameraScreen: React.FC<{ navigation: any }> = ({ navigatio
       }
     } catch (error) {
       console.error('Recording failed:', error);
-      Alert.alert('Error', 'Recording failed');
+      Alert.alert(t('error'), t('recording_failed'));
     } finally {
       isRecordingRef.current = false;
       setIsRecording(false);
@@ -87,7 +87,7 @@ export const EmergencyCameraScreen: React.FC<{ navigation: any }> = ({ navigatio
       if (cameraRef.current && isRecordingRef.current) {
         await cameraRef.current.stopRecording();
       }
-    } catch {}
+    } catch { }
   };
 
   const uploadDisasterReport = async (videoUri: string) => {
@@ -98,7 +98,7 @@ export const EmergencyCameraScreen: React.FC<{ navigation: any }> = ({ navigatio
       const coords = await locationService.getCoordinates();
       const locationName = coords
         ? await locationService.reverseGeocode(coords.latitude, coords.longitude)
-        : 'Unknown Location';
+        : t('unknown_location');
 
       const filename = videoUri.split('/').pop() || 'emergency_video.mp4';
 
@@ -110,20 +110,20 @@ export const EmergencyCameraScreen: React.FC<{ navigation: any }> = ({ navigatio
 
       formData.append('latitude', coords?.latitude?.toString() || '0');
       formData.append('longitude', coords?.longitude?.toString() || '0');
-      formData.append('location_name', locationName || 'Emergency Location');
-      formData.append('description', '🚨 EMERGENCY SHAKE REPORT - Auto-generated video');
+      formData.append('location_name', locationName || t('emergency_location'));
+      formData.append('description', t('emergency_shake_report'));
 
       await api.post('/api/disasters/report', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 60000,
       });
 
-      Alert.alert('Report Sent', 'Emergency report submitted!', [
-        { text: 'OK', onPress: () => navigation.navigate('Home') },
+      Alert.alert(t('report_sent'), t('emergency_report_submitted'), [
+        { text: t('ok'), onPress: () => navigation.navigate('Home') },
       ]);
     } catch (error) {
       console.error('Upload failed:', error);
-      Alert.alert('Upload Failed', 'Could not upload emergency report.');
+      Alert.alert(t('upload_failed'), t('upload_failed_message'));
     } finally {
       setUploading(false);
     }
@@ -137,9 +137,9 @@ export const EmergencyCameraScreen: React.FC<{ navigation: any }> = ({ navigatio
   if (!permission?.granted) {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>Camera permission is required.</Text>
+        <Text style={styles.text}>{t('camera_permission_required')}</Text>
         <TouchableOpacity onPress={requestPermission} style={styles.button}>
-          <Text style={styles.buttonText}>Grant Permission</Text>
+          <Text style={styles.buttonText}>{t('grant_permission')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -152,7 +152,7 @@ export const EmergencyCameraScreen: React.FC<{ navigation: any }> = ({ navigatio
       {/* Overlay */}
       <View style={styles.overlay}>
         <View style={styles.header}>
-          <Text style={styles.headerText}>🚨 EMERGENCY MODE</Text>
+          <Text style={styles.headerText}>{t('emergency_mode')}</Text>
         </View>
 
         <View style={styles.centerContent}>
@@ -161,17 +161,17 @@ export const EmergencyCameraScreen: React.FC<{ navigation: any }> = ({ navigatio
           ) : uploading ? (
             <>
               <ActivityIndicator size="large" color="#fff" />
-              <Text style={styles.statusText}>Uploading...</Text>
+              <Text style={styles.statusText}>{t('uploading')}</Text>
             </>
           ) : (
             <Text style={styles.statusText}>
-              {isRecording ? '🔴 Recording...' : 'Processing...'}
+              {isRecording ? t('recording') : t('processing')}
             </Text>
           )}
         </View>
 
         <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-          <Text style={styles.cancelButtonText}>CANCEL</Text>
+          <Text style={styles.cancelButtonText}>{t('cancel').toUpperCase()}</Text>
         </TouchableOpacity>
       </View>
     </View>

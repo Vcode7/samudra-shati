@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 
 const CONFIG_URL = 'https://vcode7.github.io/middelware-endpoint/url.json';
 
-let API_BASE_URL: string | null = "https://ac50-2409-40f2-1040-219b-4071-a5d5-579c-3f73.ngrok-free.app";
+let API_BASE_URL: string | null = "https://98b9-2409-40f2-140-e677-a1df-507b-62bf-b960.ngrok-free.app";
 let api: ReturnType<typeof axios.create> | null = null;
 
 export async function loadApiBaseUrl() {

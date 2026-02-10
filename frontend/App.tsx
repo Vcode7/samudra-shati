@@ -165,6 +165,14 @@ const AppNavigator: React.FC = () => {
               <Stack.Screen name="SafeAreaManagement" component={SafeAreaManagementScreen} />
               <Stack.Screen name="EvacuationGuidance" component={EvacuationGuidanceScreen} />
               <Stack.Screen name="EmergencyCamera" component={EmergencyCameraScreen} />
+              <Stack.Screen name="LanguageSelection">
+                {(props) => (
+                  <LanguageSelectionScreen
+                    {...props}
+                    onComplete={() => props.navigation.goBack()}
+                  />
+                )}
+              </Stack.Screen>
             </>
           )}
         </Stack.Navigator>

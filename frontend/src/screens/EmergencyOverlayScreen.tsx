@@ -7,10 +7,15 @@ import {
     Animated,
     Dimensions,
     Modal,
+    ScrollView,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { emergencyModeService } from '../services/emergencyModeService';
 import { vibrationService } from '../services/vibrationService';
+import { useLanguage } from '../context/LanguageContext';
+import MapView, { Marker, Circle, PROVIDER_GOOGLE } from 'react-native-maps';
+import { locationService } from '../services/locationService';
+import { navigationService } from '../services/navigationService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -33,35 +38,32 @@ export const EmergencyOverlayScreen: React.FC<EmergencyOverlayScreenProps> = ({
     disaster,
     onDismiss,
 }) => {
+    const { t } = useLanguage();
     const [isSilenced, setIsSilenced] = useState(false);
     const [distanceKm, setDistanceKm] = useState<number | null>(null);
     const pulseAnim = new Animated.Value(1);
-
+    const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
     useEffect(() => {
         if (visible) {
-            // Start pulsing animation
             const pulse = Animated.loop(
                 Animated.sequence([
-                    Animated.timing(pulseAnim, {
-                        toValue: 1.1,
-                        duration: 500,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(pulseAnim, {
-                        toValue: 1,
-                        duration: 500,
-                        useNativeDriver: true,
-                    }),
+                    Animated.timing(pulseAnim, { toValue: 1.1, duration: 500, useNativeDriver: true }),
+                    Animated.timing(pulseAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
                 ])
             );
             pulse.start();
 
-            // Check current location
             checkDistance();
+
+            (async () => {
+                const coords = await locationService.getCoordinates();
+                if (coords) setUserLocation(coords);
+            })();
 
             return () => pulse.stop();
         }
     }, [visible]);
+
 
     const checkDistance = useCallback(async () => {
         const result = await emergencyModeService.checkCurrentLocation();
@@ -103,8 +105,12 @@ export const EmergencyOverlayScreen: React.FC<EmergencyOverlayScreenProps> = ({
                     ]}
                 />
 
+
                 {/* Content */}
-                <View style={styles.content}>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
                     {/* Warning Icon */}
                     <Animated.View
                         style={[
@@ -116,8 +122,8 @@ export const EmergencyOverlayScreen: React.FC<EmergencyOverlayScreenProps> = ({
                     </Animated.View>
 
                     {/* Emergency Text */}
-                    <Text style={styles.emergencyTitle}>⚠️ EMERGENCY ⚠️</Text>
-                    <Text style={styles.dangerText}>YOU ARE IN THE DANGER ZONE</Text>
+                    <Text style={styles.emergencyTitle}>{t('emergency_title')}</Text>
+                    <Text style={styles.dangerText}>{t('you_are_in_danger_zone')}</Text>
 
                     {/* Location Info */}
                     <View style={styles.infoBox}>
@@ -126,22 +132,82 @@ export const EmergencyOverlayScreen: React.FC<EmergencyOverlayScreenProps> = ({
                         </Text>
                         {distanceKm !== null && (
                             <Text style={styles.distanceText}>
-                                Distance: {distanceKm.toFixed(2)} km
+                                {t('distance')}: {distanceKm.toFixed(2)} km
                             </Text>
                         )}
                         <Text style={styles.radiusText}>
-                            Danger Radius: {disaster.danger_radius_km} km
+                            {t('danger_radius')}: {disaster.danger_radius_km} km
                         </Text>
                     </View>
+                    {/* Mini Map Preview */}
+                    <TouchableOpacity
+                        style={styles.miniMapContainer}
+                        activeOpacity={0.9}
+                        onPress={() => {
+                            onDismiss();
+                            navigationService.navigateToDisasterMap(disaster);
+                        }}
+                    >
+                        <View pointerEvents="none" style={styles.miniMapWrapper}>
+                            <MapView
+                                style={styles.miniMap}
+                                provider={PROVIDER_GOOGLE}
+                                scrollEnabled={false}
+                                zoomEnabled={false}
+                                pitchEnabled={false}
+                                rotateEnabled={false}
+                                initialRegion={{
+                                    latitude: disaster.latitude,
+                                    longitude: disaster.longitude,
+                                    latitudeDelta: 0.02,
+                                    longitudeDelta: 0.02,
+                                }}
+                            >
+                                {/* Disaster */}
+                                <Marker
+                                    coordinate={{
+                                        latitude: disaster.latitude,
+                                        longitude: disaster.longitude,
+                                    }}
+                                    pinColor="red"
+                                />
+
+                                {/* Danger radius */}
+                                <Circle
+                                    center={{
+                                        latitude: disaster.latitude,
+                                        longitude: disaster.longitude,
+                                    }}
+                                    radius={disaster.danger_radius_km * 1000}
+                                    fillColor="rgba(255,0,0,0.15)"
+                                    strokeColor="#ff0000"
+                                    strokeWidth={2}
+                                />
+
+                                {/* User */}
+                                {userLocation && (
+                                    <Marker
+                                        coordinate={userLocation}
+                                        pinColor="blue"
+                                        title="You"
+                                    />
+                                )}
+                            </MapView>
+                        </View>
+
+                        <View style={styles.mapOverlayLabel}>
+                            <Text style={styles.mapOverlayText}>Tap to open full map</Text>
+                        </View>
+                    </TouchableOpacity>
 
                     {/* Instructions */}
                     <View style={styles.instructionsBox}>
-                        <Text style={styles.instructionTitle}>EVACUATE IMMEDIATELY</Text>
+                        <Text style={styles.instructionTitle}>{t('evacuate_immediately')}</Text>
                         <Text style={styles.instructionText}>
-                            Move to a safe location at least {disaster.danger_radius_km} km away
+                            {t('move_to_safe_location', { distance: disaster.danger_radius_km })}
                         </Text>
                         <Text style={styles.instructionText}>
-                            Alert stops automatically when you leave the danger zone
+                            {t('alert_stops_auto')}
                         </Text>
                     </View>
 
@@ -157,7 +223,7 @@ export const EmergencyOverlayScreen: React.FC<EmergencyOverlayScreenProps> = ({
                                 color="#fff"
                             />
                             <Text style={styles.buttonText}>
-                                {isSilenced ? "Resume Vibration" : "Silence Vibration"}
+                                {isSilenced ? t('resume_vibration') : t('silence_vibration')}
                             </Text>
                         </TouchableOpacity>
 
@@ -166,7 +232,7 @@ export const EmergencyOverlayScreen: React.FC<EmergencyOverlayScreenProps> = ({
                             onPress={handleImSafe}
                         >
                             <MaterialIcons name="check-circle" size={24} color="#fff" />
-                            <Text style={styles.buttonText}>I'm Safe</Text>
+                            <Text style={styles.buttonText}>{t('im_safe')}</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -174,12 +240,12 @@ export const EmergencyOverlayScreen: React.FC<EmergencyOverlayScreenProps> = ({
                     <View style={styles.statusBar}>
                         <View style={[styles.statusDot, !isSilenced && styles.statusDotActive]} />
                         <Text style={styles.statusText}>
-                            {isSilenced ? "Vibration Silenced" : "Continuous Alert Active"}
+                            {isSilenced ? t('vibration_silenced') : t('continuous_alert_active')}
                         </Text>
                     </View>
-                </View>
-            </View>
-        </Modal>
+                </ScrollView>
+            </View >
+        </Modal >
     );
 };
 
@@ -197,14 +263,16 @@ const styles = StyleSheet.create({
         backgroundColor: '#C62828',
         borderRadius: 1000,
     },
-    content: {
-        flex: 1,
+    scrollContent: {
+        flexGrow: 1,
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
+        paddingBottom: 40, // Extra padding for bottom buttons
     },
     iconContainer: {
         marginBottom: 20,
+        marginTop: 40, // Add top margin inside scrollview
     },
     emergencyTitle: {
         fontSize: 32,
@@ -320,6 +388,41 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 14,
     },
+    miniMapContainer: {
+        height: 160,
+        width: '100%',
+        borderRadius: 12,
+        overflow: 'hidden',
+        marginBottom: 20,
+        borderWidth: 2,
+        borderColor: '#ffeb3b',
+    },
+
+    miniMapWrapper: {
+        flex: 1,
+        width: '100%',
+    },
+
+    miniMap: {
+        flex: 1,
+    },
+
+    mapOverlayLabel: {
+        position: 'absolute',
+        bottom: 8,
+        right: 8,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+
+    mapOverlayText: {
+        color: '#FFEB3B',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+
 });
 
 export default EmergencyOverlayScreen;

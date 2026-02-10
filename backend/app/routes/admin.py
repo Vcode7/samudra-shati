@@ -202,3 +202,20 @@ async def get_notification_logs(
         }
         for log in logs
     ]
+
+
+@router.post("/check-region-disconnects")
+async def trigger_region_disconnect_check(
+    db: Session = Depends(get_db)
+):
+    """
+    Manually trigger region disconnect detection.
+    
+    This scans for devices that went offline in the same region at once.
+    In production, this would run automatically every 1-2 minutes.
+    """
+    from ..services.region_disconnect_service import RegionDisconnectDetectorService
+    
+    result = await RegionDisconnectDetectorService.check_for_region_disconnects(db)
+    
+    return result

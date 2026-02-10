@@ -159,6 +159,10 @@ class DisasterReport(Base):
     emergency_confirmation_threshold = Column(Integer, default=5)  # Number of confirmations to trigger emergency
     is_demo = Column(Boolean, default=False)  # Flag for demo/test disasters
     
+    # AI Prediction tracking
+    ai_predicted = Column(Boolean, default=False)  # True if this was created from AI prediction
+    prediction_type = Column(String(100), nullable=True)  # Type of AI prediction (COASTAL_STORM_RISK, etc.)
+    
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     resolved_at = Column(DateTime, nullable=True)
@@ -269,6 +273,13 @@ class Device(Base):
     
     # Device info
     platform = Column(String(50), nullable=True)  # ios, android
+    
+    # Last known location (for emergency/offline tracking)
+    last_latitude = Column(Float, nullable=True)
+    last_longitude = Column(Float, nullable=True)
+    last_seen_at = Column(DateTime, nullable=True)
+    battery_level = Column(Float, nullable=True)  # 0-100
+    network_status = Column(String(20), default="online")  # online, offline
     
     # Status
     is_active = Column(Boolean, default=True)
@@ -427,5 +438,112 @@ class ServiceCenter(Base):
     
     # Relationships
     authority = relationship("Authority", backref="service_centers")
+
+
+class PredictionStatus(str, enum.Enum):
+    """Status of AI predictions"""
+    PENDING = "pending"                  # Prediction sent, awaiting verification
+    VERIFIED = "verified"                # Authority verified as real disaster
+    CANCELLED = "cancelled"              # Authority determined false prediction
+    EXPIRED = "expired"                  # Prediction validity period ended
+
+
+class EarlyWarningPrediction(Base):
+    """AI-generated early warning predictions from disaster-prediction-service"""
+    __tablename__ = "early_warning_predictions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Prediction details
+    type = Column(String(100), nullable=False)  # COASTAL_STORM_RISK, FLOOD_RISK, etc.
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    severity = Column(Integer, nullable=False)  # 1-10 scale
+    confidence = Column(Float, nullable=False)  # 0-1 confidence score
+    
+    # Source and message
+    source_apis = Column(Text, nullable=False)  # JSON array: ["open-meteo", "openweather"]
+    message = Column(Text, nullable=False)  # Human-readable warning message
+    
+    # Time validity
+    predicted_at = Column(DateTime, nullable=False)  # When prediction was made
+    valid_for_minutes = Column(Integer, default=360)  # How long prediction is valid
+    
+    # Status tracking
+    status = Column(Enum(PredictionStatus), default=PredictionStatus.PENDING)
+    verified_by_authority_id = Column(Integer, ForeignKey("authorities.id"), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    verified_by_authority = relationship("Authority", backref="verified_predictions")
+
+
+class EmergencyCallLog(Base):
+    """Log of emergency calls made from mobile app to authorities"""
+    __tablename__ = "emergency_call_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # User/Device info
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    device_id = Column(String(255), nullable=False)
+    
+    # Authority called
+    authority_id = Column(Integer, ForeignKey("authorities.id"), nullable=False)
+    
+    # Location at time of call
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    
+    # Call metadata
+    call_initiated_at = Column(DateTime, default=datetime.utcnow)
+    location_sharing_stopped_at = Column(DateTime, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", backref="emergency_calls")
+    authority = relationship("Authority", backref="emergency_calls")
+
+
+class AlertStatus(str, enum.Enum):
+    """Status of region disconnect alerts"""
+    INVESTIGATING = "investigating"
+    FALSE_ALARM = "false_alarm"
+    CONFIRMED_INCIDENT = "confirmed_incident"
+    PENDING = "pending"
+
+
+class RegionDisconnectAlert(Base):
+    """Alerts for when many devices go offline in same region"""
+    __tablename__ = "region_disconnect_alerts"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Region center (approximate)
+    center_latitude = Column(Float, nullable=False)
+    center_longitude = Column(Float, nullable=False)
+    radius_km = Column(Float, default=2.0)  # Radius of affected region
+    
+    # Alert details
+    affected_device_count = Column(Integer, nullable=False)
+    device_ids = Column(Text, nullable=False)  # JSON array of device IDs
+    
+    # Status
+    status = Column(Enum(AlertStatus), default=AlertStatus.PENDING)
+    
+    # Authority handling
+    assigned_authority_id = Column(Integer, ForeignKey("authorities.id"), nullable=True)
+    
+    # Timestamps
+    detected_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    assigned_authority = relationship("Authority", backref="disconnect_alerts")
 
 

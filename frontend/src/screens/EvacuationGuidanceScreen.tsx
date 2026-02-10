@@ -13,6 +13,7 @@ import MapView, { Marker, Circle, Polyline, PROVIDER_GOOGLE } from 'react-native
 import { apiClient } from '../services/api';
 import { locationService } from '../services/locationService';
 import { vibrationService } from '../services/vibrationService';
+import { useLanguage } from '../context/LanguageContext';
 
 interface SafeArea {
     id: number;
@@ -44,6 +45,7 @@ interface Props {
 }
 
 export const EvacuationGuidanceScreen: React.FC<Props> = ({ navigation, route }) => {
+    const { t } = useLanguage();
     const mapRef = useRef<MapView>(null);
     const [loading, setLoading] = useState(true);
     const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -152,9 +154,9 @@ export const EvacuationGuidanceScreen: React.FC<Props> = ({ navigation, route })
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Text style={styles.backButtonText}>← Back</Text>
+                    <Text style={styles.backButtonText}>← {t('back')}</Text>
                 </TouchableOpacity>
-                <Text style={styles.title}>🚶 Evacuation Guidance</Text>
+                <Text style={styles.title}>🚶 {t('evacuation_guidance')}</Text>
             </View>
 
             {/* Map */}
@@ -184,7 +186,7 @@ export const EvacuationGuidanceScreen: React.FC<Props> = ({ navigation, route })
                             <Marker
                                 coordinate={disasterLocation}
                                 pinColor="#ff0000"
-                                title="Disaster Zone"
+                                title={t('disaster_zone')}
                             />
                         </>
                     )}

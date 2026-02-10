@@ -132,8 +132,9 @@ export const AlertsMapScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     };
 
     const getMarkerColor = (status: string, severity: number) => {
-        if (status === 'FALSE_ALARM') return '#999';
-        if (status === 'VERIFIED') {
+
+        if (status === 'false_alarm') return '#999';
+        if (status === 'verified') {
             if (severity >= 8) return '#ff0000';
             if (severity >= 5) return '#ff9800';
             return '#ffc107';
@@ -343,7 +344,7 @@ export const AlertsMapScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                     onPress={() => setShowSafeAreas(!showSafeAreas)}
                 >
                     <Text style={[styles.toggleText, showSafeAreas && styles.toggleTextActive]}>
-                        🟢 Safe Areas
+                        🟢 {t('safe_areas')}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -352,23 +353,23 @@ export const AlertsMapScreen: React.FC<{ navigation: any }> = ({ navigation }) =
             <View style={styles.legend}>
                 <View style={styles.legendItem}>
                     <View style={[styles.legendDot, { backgroundColor: '#ff0000' }]} />
-                    <Text style={styles.legendText}>Critical</Text>
+                    <Text style={styles.legendText}>{t('critical')}</Text>
                 </View>
                 <View style={styles.legendItem}>
                     <View style={[styles.legendDot, { backgroundColor: '#ff9800' }]} />
-                    <Text style={styles.legendText}>High</Text>
+                    <Text style={styles.legendText}>{t('high')}</Text>
                 </View>
                 <View style={styles.legendItem}>
                     <View style={[styles.legendDot, { backgroundColor: '#ffc107' }]} />
-                    <Text style={styles.legendText}>Moderate</Text>
+                    <Text style={styles.legendText}>{t('moderate')}</Text>
                 </View>
                 <View style={styles.legendItem}>
                     <View style={[styles.legendDot, { backgroundColor: '#00aa00' }]} />
-                    <Text style={styles.legendText}>Authority</Text>
+                    <Text style={styles.legendText}>{t('authority')}</Text>
                 </View>
                 <View style={styles.legendItem}>
                     <View style={[styles.legendDot, { backgroundColor: '#4caf50' }]} />
-                    <Text style={styles.legendText}>Safe Zone</Text>
+                    <Text style={styles.legendText}>{t('safe_zone')}</Text>
                 </View>
             </View>
 

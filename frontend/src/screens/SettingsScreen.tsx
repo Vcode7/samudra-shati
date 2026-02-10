@@ -12,16 +12,11 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage, LanguageCode } from '../context/LanguageContext';
+import { ALL_LANGUAGES } from '../i18n';
 import { vibrationService } from '../services/vibrationService';
 import { voiceService } from '../services/voiceService';
 import { notificationService } from '../services/notificationService';
 import { apiClient } from '../services/api';
-
-const LANGUAGES = [
-    { code: 'en' as LanguageCode, name: 'English', nativeName: 'English' },
-    { code: 'hi' as LanguageCode, name: 'Hindi', nativeName: 'हिन्दी' },
-    { code: 'ta' as LanguageCode, name: 'Tamil', nativeName: 'தமிழ்' },
-];
 
 export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const { user, logout } = useAuth();
@@ -127,14 +122,14 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
                 {/* User Info */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Profile</Text>
+                    <Text style={styles.sectionTitle}>{t('profile')}</Text>
                     <View style={styles.card}>
                         <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Phone Number:</Text>
+                            <Text style={styles.infoLabel}>{t('phone_number')}:</Text>
                             <Text style={styles.infoValue}>{user?.phone_number || 'N/A'}</Text>
                         </View>
                         <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>{t('trustScore')}:</Text>
+                            <Text style={styles.infoLabel}>{t('trust_score')}:</Text>
                             <Text style={[styles.infoValue, styles.trustScore]}>
                                 {user?.trust_score?.toFixed(0) || 100}
                             </Text>
@@ -144,63 +139,43 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
                 {/* Language Settings */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>{t('changeLanguage')}</Text>
+                    <Text style={styles.sectionTitle}>{t('change_language')}</Text>
 
                     <View style={styles.card}>
-                        <Text style={styles.cardSubtitle}>Primary Language</Text>
-                        <View style={styles.languageGrid}>
-                            {LANGUAGES.map((lang) => (
-                                <TouchableOpacity
-                                    key={lang.code}
-                                    style={[
-                                        styles.languageButton,
-                                        primaryLanguage === lang.code && styles.languageButtonSelected,
-                                    ]}
-                                    onPress={() => handleLanguageChange(lang.code, false)}
-                                >
-                                    <Text
-                                        style={[
-                                            styles.languageText,
-                                            primaryLanguage === lang.code && styles.languageTextSelected,
-                                        ]}
-                                    >
-                                        {lang.nativeName}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
+                        <View style={styles.languageRow}>
+                            <View style={styles.languageInfo}>
+                                <Text style={styles.cardSubtitle}>{t('primary_language')}</Text>
+                                <Text style={styles.languageName}>
+                                    {ALL_LANGUAGES.find(l => l.code === primaryLanguage)?.nativeName || 'English'}
+                                </Text>
+                            </View>
                         </View>
 
-                        <Text style={[styles.cardSubtitle, { marginTop: 20 }]}>
-                            Secondary Language (Optional)
-                        </Text>
-                        <View style={styles.languageGrid}>
-                            {LANGUAGES.filter((lang) => lang.code !== primaryLanguage).map((lang) => (
-                                <TouchableOpacity
-                                    key={lang.code}
-                                    style={[
-                                        styles.languageButton,
-                                        styles.languageButtonSecondary,
-                                        secondaryLanguage === lang.code && styles.languageButtonSelected,
-                                    ]}
-                                    onPress={() => handleLanguageChange(lang.code, true)}
-                                >
-                                    <Text
-                                        style={[
-                                            styles.languageText,
-                                            secondaryLanguage === lang.code && styles.languageTextSelected,
-                                        ]}
-                                    >
-                                        {lang.nativeName}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
+                        <View style={[styles.languageRow, { marginTop: 12 }]}>
+                            <View style={styles.languageInfo}>
+                                <Text style={styles.cardSubtitle}>{t('secondary_language')}</Text>
+                                <Text style={styles.languageName}>
+                                    {secondaryLanguage
+                                        ? ALL_LANGUAGES.find(l => l.code === secondaryLanguage)?.nativeName
+                                        : t('optional')}
+                                </Text>
+                            </View>
                         </View>
+
+                        <TouchableOpacity
+                            style={styles.changeLanguageButton}
+                            onPress={() => navigation.navigate('LanguageSelection')}
+                        >
+                            <Text style={styles.changeLanguageButtonText}>
+                                {t('change_language')} →
+                            </Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
 
                 {/* Actions */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Actions</Text>
+                    <Text style={styles.sectionTitle}>{t('actions')}</Text>
 
                     <TouchableOpacity style={styles.actionButton} onPress={handleTestAlert}>
                         <Text style={styles.actionButtonIcon}>🔔</Text>
@@ -214,7 +189,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                     >
                         <Text style={styles.actionButtonIcon}>📢</Text>
                         <Text style={styles.actionButtonText}>
-                            {broadcastLoading ? 'Sending...' : 'Test Broadcast (All Devices)'}
+                            {broadcastLoading ? t('sending') : t('test_broadcast')}
                         </Text>
                     </TouchableOpacity>
 
@@ -226,14 +201,14 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
                 {/* Debug Section */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Debug</Text>
+                    <Text style={styles.sectionTitle}>{t('debug')}</Text>
                     <TouchableOpacity style={styles.actionButton} onPress={() => vibrationService.emergencyPattern()}>
                         <Text style={styles.actionButtonIcon}>📳</Text>
-                        <Text style={styles.actionButtonText}>Test Shake</Text>
+                        <Text style={styles.actionButtonText}>{t('test_shake')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('EmergencyCamera')}>
                         <Text style={styles.actionButtonIcon}>📸</Text>
-                        <Text style={styles.actionButtonText}>Test Emergency Camera</Text>
+                        <Text style={styles.actionButtonText}>{t('test_emergency_camera')}</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -280,6 +255,17 @@ const styles = StyleSheet.create({
     infoLabel: { fontSize: 16, color: '#666' },
     infoValue: { fontSize: 16, fontWeight: '600', color: '#333' },
     trustScore: { color: '#4caf50' },
+    languageRow: { flexDirection: 'row', alignItems: 'center', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
+    languageInfo: { flex: 1 },
+    languageName: { fontSize: 18, fontWeight: '600', color: '#333', marginTop: 4 },
+    changeLanguageButton: {
+        backgroundColor: '#0066cc',
+        padding: 14,
+        borderRadius: 10,
+        alignItems: 'center',
+        marginTop: 16,
+    },
+    changeLanguageButtonText: { fontSize: 16, fontWeight: '600', color: '#fff' },
     languageGrid: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
     languageButton: {
         flex: 1,

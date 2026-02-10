@@ -65,16 +65,16 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             }
         );
         await notificationService.scheduleLocalNotification('Test Alert', 'This is a test disaster alert', { type: 'test' });
-        Alert.alert('Test Alert', 'Voice and vibration test completed!');
+        Alert.alert(t('success'), t('test_alert_completed'));
     };
 
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView style={styles.scrollView} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>🌊 samudra saathi</Text>
+                    <Text style={styles.headerTitle}>{t('app_name')}</Text>
                     <Text style={styles.headerSubtitle}>
-                        {t('home')} • Trust Score: {user?.trust_score?.toFixed(0) || 100}
+                        {t('home')} • {t('trust_score')}: {user?.trust_score?.toFixed(0) || 100}
                     </Text>
                 </View>
 
@@ -83,28 +83,45 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                         <Text style={styles.alertBannerIcon}>🚨</Text>
                         <TouchableOpacity onPress={() => navigation.navigate('AlertsMap')}>
                             <View style={styles.alertBannerContent}>
-                                <Text style={styles.alertBannerTitle}>{activeAlerts.length} {t('activeAlerts')}</Text>
-                                <Text style={styles.alertBannerText}>Tap to view details</Text>
+                                <Text style={styles.alertBannerTitle}>{activeAlerts.length} {t('active_alerts')}</Text>
+                                <Text style={styles.alertBannerText}>{t('tap_to_view_details')}</Text>
                             </View>
                         </TouchableOpacity>
                     </View>
                 ) : (
                     <View style={styles.noAlertBanner}>
-                        <Text style={styles.noAlertText}>✅ {t('noActiveAlerts')}</Text>
+                        <Text style={styles.noAlertText}>✅ {t('no_active_alerts')}</Text>
                     </View>
                 )}
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Quick Actions</Text>
+                    <Text style={styles.sectionTitle}>{t('quick_actions')}</Text>
+
+                    {/* Emergency Call Button - Prominent placement */}
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.emergencyCallButton]}
+                        onPress={async () => {
+                            vibrationService.heavy();
+                            const deviceId = await notificationService.getDeviceId();
+                            const { EmergencyCallService } = require('../services/emergencyCallService');
+                            await EmergencyCallService.initiateEmergencyCall(deviceId);
+                        }}
+                    >
+                        <Text style={styles.emergencyCallIcon}>📞</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.emergencyCallText}>{t('call_for_help')}</Text>
+                            <Text style={styles.emergencyCallSubtext}>{t('nearest_authority')}</Text>
+                        </View>
+                    </TouchableOpacity>
 
                     <TouchableOpacity style={[styles.actionButton, styles.actionButtonPrimary]} onPress={() => { vibrationService.medium(); navigation.navigate('UploadDisaster'); }}>
                         <Text style={styles.actionButtonIcon}>📸</Text>
-                        <Text style={styles.actionButtonText}>{t('reportDisaster')}</Text>
+                        <Text style={styles.actionButtonText}>{t('report_disaster')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.actionButton} onPress={() => { vibrationService.light(); navigation.navigate('RecentAlerts'); }}>
                         <Text style={styles.actionButtonIcon}>📋</Text>
-                        <Text style={styles.actionButtonText}>{t('recentAlerts')}</Text>
+                        <Text style={styles.actionButtonText}>{t('recent_alerts')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.actionButton} onPress={() => { vibrationService.light(); navigation.navigate('Settings'); }}>
@@ -114,19 +131,19 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
                     <TouchableOpacity style={styles.actionButton} onPress={() => { vibrationService.light(); navigation.navigate('AlertsMap'); }}>
                         <Text style={styles.actionButtonIcon}>🗺️</Text>
-                        <Text style={styles.actionButtonText}>View Map</Text>
+                        <Text style={styles.actionButtonText}>{t('view_map')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.actionButton} onPress={handleTestAlert}>
                         <Text style={styles.actionButtonIcon}>🔔</Text>
-                        <Text style={styles.actionButtonText}>{t('testAlert')}</Text>
+                        <Text style={styles.actionButtonText}>{t('test_alert')}</Text>
                     </TouchableOpacity>
 
                     {/* Authority Login - Web Only */}
                     {Platform.OS === 'web' && (
                         <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#1a1a2e', borderColor: '#1a1a2e' }]} onPress={() => { vibrationService.light(); navigation.navigate('AuthorityLogin'); }}>
                             <Text style={styles.actionButtonIcon}>🏛️</Text>
-                            <Text style={[styles.actionButtonText, { color: '#fff' }]}>Authority Login</Text>
+                            <Text style={[styles.actionButtonText, { color: '#fff' }]}>{t('authority_login')}</Text>
                         </TouchableOpacity>
                     )}
 
@@ -135,23 +152,23 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                         onPress={async () => {
                             vibrationService.heavy();
                             Alert.alert(
-                                '⚠️ Emergency Demo',
-                                'This will trigger a 30-second emergency simulation. All devices will receive notifications.\n\nContinue?',
+                                t('emergency_demo'),
+                                t('emergency_demo_confirm'),
                                 [
-                                    { text: 'Cancel', style: 'cancel' },
+                                    { text: t('cancel'), style: 'cancel' },
                                     {
-                                        text: 'Start Demo',
+                                        text: t('start_demo'),
                                         style: 'destructive',
                                         onPress: async () => {
                                             try {
                                                 const api = await apiClient();
                                                 const response = await api.post('/api/disasters/demo');
                                                 Alert.alert(
-                                                    '🚨 Demo Started',
-                                                    `Emergency simulation active for 30 seconds.\n\n${response.data.devices_notified} devices notified.`
+                                                    t('demo_started'),
+                                                    t('demo_started_message', { count: response.data.devices_notified })
                                                 );
                                             } catch (error: any) {
-                                                Alert.alert('Error', error?.response?.data?.detail || 'Failed to start demo');
+                                                Alert.alert(t('error'), error?.response?.data?.detail || t('failed_start_demo'));
                                             }
                                         },
                                     },
@@ -160,7 +177,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                         }}
                     >
                         <Text style={styles.actionButtonIcon}>🚨</Text>
-                        <Text style={[styles.actionButtonText, { color: '#fff' }]}>⚠️ Emergency Demo</Text>
+                        <Text style={[styles.actionButtonText, { color: '#fff' }]}>{t('emergency_demo')}</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -202,6 +219,19 @@ const styles = StyleSheet.create({
     actionButtonPrimary: { backgroundColor: '#ff6600', borderColor: '#ff6600' },
     actionButtonIcon: { fontSize: 28, marginRight: 16 },
     actionButtonText: { fontSize: 18, fontWeight: '600', color: '#333' },
+    emergencyCallButton: {
+        backgroundColor: '#00B4D8',
+        borderColor: '#0077B6',
+        borderWidth: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 8
+    },
+    emergencyCallIcon: { fontSize: 36, marginRight: 16 },
+    emergencyCallText: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
+    emergencyCallSubtext: { fontSize: 14, color: '#e0f5ff', marginTop: 4 },
     alertCard: { backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: '#ff3333' },
     alertCardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
     alertCardTitle: { fontSize: 16, fontWeight: '600', color: '#333', flex: 1 },

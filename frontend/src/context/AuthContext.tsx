@@ -51,27 +51,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                 setToken(storedToken);
                 setUserType(storedUserType as UserType);
-                setIsAuthenticated(true);
+                // Don't set isAuthenticated yet - verify token first
+                // setIsAuthenticated(true);
 
-                await fetchUserProfile(storedUserType as UserType);
+                const success = await fetchUserProfile(storedUserType as UserType);
+                if (success) {
+                    setIsAuthenticated(true);
+                } else {
+                    // Token invalid, clear state
+                    // logout() is called inside fetchUserProfile on error, but we can ensure here too
+                    setIsAuthenticated(false);
+                }
             }
         } catch (error) {
             console.error('Error loading auth state:', error);
+            await logout();
         } finally {
             setLoading(false);
         }
     };
 
 
-    const fetchUserProfile = async (type: UserType) => {
+    const fetchUserProfile = async (type: UserType): Promise<boolean> => {
         try {
             const endpoint = type === 'authority' ? '/api/authorities/me' : '/api/users/me';
             const api = await apiClient();
             const response = await api.get(endpoint);
             setUser(response.data);
+            return true;
         } catch (error) {
             console.error('Error fetching user profile:', error);
             await logout();
+            return false;
         }
     };
 

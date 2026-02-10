@@ -18,7 +18,7 @@ export const OTPVerificationScreen: React.FC = () => {
     const handleRequestOTP = async () => {
         const api = await apiClient();
         if (phoneNumber.length < 10) {
-            Alert.alert(t('error'), 'Please enter a valid phone number');
+            Alert.alert(t('error'), t('invalid_phone'));
             vibrationService.error();
             return;
         }
@@ -29,11 +29,11 @@ export const OTPVerificationScreen: React.FC = () => {
             if (response.data.success) {
                 setOtpSent(true);
                 vibrationService.success();
-                Alert.alert(t('success'), `OTP sent to ${phoneNumber}${response.data.otp_code ? `\n\nDev OTP: ${response.data.otp_code}` : ''}`);
+                Alert.alert(t('success'), t('otp_sent', { phone: phoneNumber }) + (response.data.otp_code ? `\n\nDev OTP: ${response.data.otp_code}` : ''));
             }
         } catch (error: any) {
             vibrationService.error();
-            Alert.alert(t('error'), error.response?.data?.detail || 'Failed to send OTP');
+            Alert.alert(t('error'), error.response?.data?.detail || t('failed_send_otp'));
         } finally {
             setLoading(false);
         }
@@ -42,7 +42,7 @@ export const OTPVerificationScreen: React.FC = () => {
     const handleVerifyOTP = async () => {
 
         if (otp.length !== 6) {
-            Alert.alert(t('error'), 'Please enter 6-digit OTP');
+            Alert.alert(t('error'), t('invalid_otp'));
             vibrationService.error();
             return;
         }
@@ -67,7 +67,7 @@ export const OTPVerificationScreen: React.FC = () => {
             }
         } catch (error: any) {
             vibrationService.error();
-            Alert.alert(t('error'), error.response?.data?.detail || 'Invalid OTP');
+            Alert.alert(t('error'), error.response?.data?.detail || t('invalid_otp_code'));
         } finally {
             setLoading(false);
         }
@@ -77,13 +77,13 @@ export const OTPVerificationScreen: React.FC = () => {
         <SafeAreaView style={styles.container}>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.content}>
                 <View style={styles.header}>
-                    <Text style={styles.title}>🌊 samudra saathi</Text>
-                    <Text style={styles.subtitle}>Verify Your Phone Number</Text>
+                    <Text style={styles.title}>{t('app_name')}</Text>
+                    <Text style={styles.subtitle}>{t('verify_phone')}</Text>
                 </View>
 
                 <View style={styles.form}>
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>{t('phoneNumber')}</Text>
+                        <Text style={styles.label}>{t('phone_number')}</Text>
                         <TextInput
                             style={styles.input}
                             placeholder="+91 9876543210"

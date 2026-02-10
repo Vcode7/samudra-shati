@@ -18,6 +18,17 @@ from ..services.alert_service import AlertService
 
 router = APIRouter(prefix="/api/disasters", tags=["disasters"])
 
+def find_nearby_active_disaster(lat: float, lng: float, db: Session):
+    active = db.query(DisasterReport).filter(
+        DisasterReport.status.in_([DisasterStatus.PENDING, DisasterStatus.VERIFIED])
+    ).all()
+
+    for d in active:
+        distance = AlertService.calculate_distance(lat, lng, d.latitude, d.longitude)
+        if distance <= d.danger_radius_km:
+            return d, distance
+
+    return None, None
 
 @router.post("/report", response_model=DisasterReportResponse,)
 async def create_disaster_report(
@@ -50,6 +61,79 @@ async def create_disaster_report(
             detail="Your trust score is too low to submit reports. Please contact support."
         )
     
+    existing_disaster, distance = find_nearby_active_disaster(latitude, longitude, db)
+
+    if existing_disaster:
+        # Treat as verification
+        existing_disaster.verification_count_yes += 1
+
+        # Expand radius to include the new point
+        new_radius = max(
+            existing_disaster.danger_radius_km,
+            distance + 0.5  # add buffer of 500m
+        )
+
+        existing_disaster.danger_radius_km = round(new_radius, 2)
+
+        # Optional: slightly increase severity if many reports come in
+        if existing_disaster.verification_count_yes >= 3:
+            existing_disaster.severity_level = min(10, existing_disaster.severity_level + 2)
+
+        # Auto-verify if many reports come in
+        if (existing_disaster.verification_count_yes >= existing_disaster.emergency_confirmation_threshold and 
+            existing_disaster.alert_status != DisasterAlertStatus.EMERGENCY_ACTIVE):
+            
+            existing_disaster.alert_status = DisasterAlertStatus.EMERGENCY_ACTIVE
+            existing_disaster.status = DisasterStatus.VERIFIED
+            
+            # Send emergency alert to ALL devices in danger radius
+            nearby_devices = db.query(Device).filter(
+                Device.is_active == True,
+                Device.expo_push_token.isnot(None)
+            ).all()
+            
+            tokens = [d.expo_push_token for d in nearby_devices]
+            
+            if tokens:
+                # Prepare emergency message
+                messages = {
+                    "en": {
+                        "title": "🚨 EMERGENCY ALERT",
+                        "body": f"VERIFIED DISASTER near {disaster.location_name}! Community confirmed ({disaster.verification_count_yes} people). If you are nearby, evacuate immediately!"
+                    },
+                    "hi": {
+                        "title": "🚨 आपातकालीन अलर्ट",
+                        "body": f"{disaster.location_name} के पास सत्यापित आपदा! समुदाय द्वारा पुष्टि ({disaster.verification_count_yes} लोग)। यदि आप पास में हैं, तुरंत निकासी करें!"
+                    },
+                    "ta": {
+                        "title": "🚨 அவசர எச்சரிக்கை",
+                        "body": f"{disaster.location_name} அருகில் சரிபார்க்கப்பட்ட பேரிடர்! சமூகம் உறுதிப்படுத்தியது. நீங்கள் அருகில் இருந்தால், உடனடியாக வெளியேறுங்கள்!"
+                    }
+                }
+                
+                await NotificationService.send_push_notification(
+                    expo_tokens=tokens,
+                    title=messages["en"]["title"],
+                    body=messages["en"]["body"],
+                    data={
+                        "type": "emergency_active",
+                        "disaster_id": disaster.id,
+                        "latitude": disaster.latitude,
+                        "longitude": disaster.longitude,
+                        "danger_radius_km": disaster.danger_radius_km,
+                        "severity": disaster.severity_level,
+                        "location": disaster.location_name,
+                        "messages": messages
+                    },
+                    priority="high"
+                )
+    
+
+        db.commit()
+        db.refresh(existing_disaster)
+
+        return existing_disaster
+
     # Validate media file (image or video)
     allowed_types = ["image/", "video/"]
     if not any(image.content_type.startswith(t) for t in allowed_types):

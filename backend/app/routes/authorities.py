@@ -8,7 +8,8 @@ from ..models import Authority, Equipment, DisasterReport, Device, DisasterStatu
 from ..schemas import (
     AuthorityLogin, AuthorityCreate, AuthorityResponse,
     AuthorityUpdate, Token,
-    EquipmentCreate, EquipmentUpdate, EquipmentResponse
+    EquipmentCreate, EquipmentUpdate, EquipmentResponse,
+    EmergencyCallCreate, RegionAlertStatusUpdate
 )
 from ..auth import verify_password, get_password_hash, create_access_token
 from ..dependencies import get_current_authority
@@ -53,6 +54,83 @@ async def get_nearby_authorities(
         }
         for auth in authorities
     ]
+
+
+@router.get("/nearest")
+async def get_nearest_authority(
+    lat: float,
+    lng: float,
+    db: Session = Depends(get_db)
+):
+    """
+    Find nearest active authority based on user location.
+    Uses Haversine formula to calculate distance.
+    
+    Used for one-tap emergency call feature.
+    """
+    from math import radians, sin, cos, sqrt, atan2
+    
+    def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """Calculate distance between two points in km using Haversine formula"""
+        R = 6371  # Earth's radius in km
+        
+        lat1_rad, lon1_rad = radians(lat1), radians(lon1)
+        lat2_rad, lon2_rad = radians(lat2), radians(lon2)
+        
+        dlat = lat2_rad - lat1_rad
+        dlon = lon2_rad - lon1_rad
+        
+        a = sin(dlat / 2) ** 2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2) ** 2
+        c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        
+        return R * c
+    
+    # Get all active authorities
+    authorities = db.query(Authority).filter(
+        Authority.is_active == True
+    ).all()
+    
+    if not authorities:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active authorities found"
+        )
+    
+    # Calculate distances and find nearest
+    nearest_authority = None
+    min_distance = float('inf')
+    
+    for auth in authorities:
+        distance = haversine_distance(lat, lng, auth.base_latitude, auth.base_longitude)
+        
+        # Check if within operational radius
+        if distance <= auth.operational_radius_km and distance < min_distance:
+            min_distance = distance
+            nearest_authority = auth
+    
+    # If no authority within operational radius, return closest one anyway
+    if not nearest_authority:
+        for auth in authorities:
+            distance = haversine_distance(lat, lng, auth.base_latitude, auth.base_longitude)
+            if distance < min_distance:
+                min_distance = distance
+                nearest_authority = auth
+    
+    if not nearest_authority:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No authority available"
+        )
+    
+    return {
+        "authority_id": nearest_authority.id,
+        "organization_name": nearest_authority.organization_name,
+        "authority_type": nearest_authority.authority_type.value if hasattr(nearest_authority.authority_type, 'value') else str(nearest_authority.authority_type),
+        "contact_number": nearest_authority.contact_number,
+        "base_latitude": nearest_authority.base_latitude,
+        "base_longitude": nearest_authority.base_longitude,
+        "distance_km": round(min_distance, 2)
+    }
 
 
 @router.post("/login", response_model=Token)
@@ -385,3 +463,199 @@ async def delete_equipment(
     db.commit()
     
     return {"success": True, "message": "Equipment deleted"}
+
+
+@router.post("/emergency-call")
+async def log_emergency_call(
+    call_data: EmergencyCallCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Log an emergency call initiated from mobile app.
+    No auth required - uses device_id.
+    """
+    from ..models import EmergencyCallLog
+    
+    # Get device's user_id if linked
+    device = db.query(Device).filter(
+        Device.device_id == call_data.device_id
+    ).first()
+    user_id = device.user_id if device else None
+    
+    # Verify authority exists
+    authority = db.query(Authority).filter(
+        Authority.id == call_data.authority_id
+    ).first()
+    
+    if not authority:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Authority not found"
+        )
+    
+    # Create call log
+    call_log = EmergencyCallLog(
+        user_id=user_id,
+        device_id=call_data.device_id,
+        authority_id=call_data.authority_id,
+        latitude=call_data.latitude,
+        longitude=call_data.longitude
+    )
+    db.add(call_log)
+    db.commit()
+    db.refresh(call_log)
+    
+    # Send notification to authority dashboard
+    if authority.expo_push_token:
+        await NotificationService.send_push_notification(
+            expo_tokens=[authority.expo_push_token],
+            title="📞 Incoming Emergency Call",
+            body=f"Emergency call from device {call_data.device_id[:8]}... at ({call_data.latitude:.4f}, {call_data.longitude:.4f})",
+            data={
+                "type": "emergency_call",
+                "call_log_id": call_log.id,
+                "device_id": call_data.device_id,
+                "latitude": call_data.latitude,
+                "longitude": call_data.longitude
+            },
+            priority="high"
+        )
+    
+    return {
+        "success": True,
+        "call_log_id": call_log.id,
+        "authority": {
+            "id": authority.id,
+            "organization_name": authority.organization_name,
+            "contact_number": authority.contact_number
+        }
+    }
+
+
+@router.post("/emergency-call/{call_log_id}/stop-sharing")
+async def stop_location_sharing(
+    call_log_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Mark that user stopped sharing location during emergency call.
+    """
+    from ..models import EmergencyCallLog
+    
+    call_log = db.query(EmergencyCallLog).filter(
+        EmergencyCallLog.id == call_log_id
+    ).first()
+    
+    if not call_log:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Call log not found"
+        )
+    
+    call_log.location_sharing_stopped_at = datetime.utcnow()
+    db.commit()
+    
+    return {"success": True, "message": "Location sharing stopped"}
+
+
+@router.get("/emergency-calls")
+async def get_emergency_calls(
+    current_authority: Authority = Depends(get_current_authority),
+    db: Session = Depends(get_db)
+):
+    """
+    Get recent emergency calls for current authority.
+    """
+    from ..models import EmergencyCallLog
+    from sqlalchemy import desc
+    
+    calls = db.query(EmergencyCallLog).filter(
+        EmergencyCallLog.authority_id == current_authority.id
+    ).order_by(desc(EmergencyCallLog.created_at)).limit(50).all()
+    
+    return [
+        {
+            "id": call.id,
+            "device_id": call.device_id,
+            "user_id": call.user_id,
+            "latitude": call.latitude,
+            "longitude": call.longitude,
+            "call_initiated_at": call.call_initiated_at.isoformat(),
+            "location_sharing_active": call.location_sharing_stopped_at is None
+        }
+        for call in calls
+    ]
+
+
+@router.get("/region-alerts")
+async def get_region_disconnect_alerts(
+    current_authority: Authority = Depends(get_current_authority),
+    db: Session = Depends(get_db)
+):
+    """
+    Get region disconnect alerts (many devices going offline at once).
+    """
+    from ..models import RegionDisconnectAlert, AlertStatus
+    from sqlalchemy import desc
+    
+    alerts = db.query(RegionDisconnectAlert).filter(
+        RegionDisconnectAlert.status != AlertStatus.FALSE_ALARM
+    ).order_by(desc(RegionDisconnectAlert.detected_at)).limit(50).all()
+    
+    return [
+        {
+            "id": alert.id,
+            "center_latitude": alert.center_latitude,
+            "center_longitude": alert.center_longitude,
+            "radius_km": alert.radius_km,
+            "affected_device_count": alert.affected_device_count,
+            "status": alert.status.value if hasattr(alert.status, 'value') else str(alert.status),
+            "detected_at": alert.detected_at.isoformat()
+        }
+        for alert in alerts
+    ]
+
+
+@router.put("/region-alerts/{alert_id}/status")
+async def update_region_alert_status(
+    alert_id: int,
+    status_update: RegionAlertStatusUpdate,
+    current_authority: Authority = Depends(get_current_authority),
+    db: Session = Depends(get_db)
+):
+    """
+    Update status of a region disconnect alert.
+    """
+    from ..models import RegionDisconnectAlert, AlertStatus as AlertStatusEnum
+    
+    alert = db.query(RegionDisconnectAlert).filter(
+        RegionDisconnectAlert.id == alert_id
+    ).first()
+    
+    if not alert:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alert not found"
+        )
+    
+    # Map status string to enum
+    status_map = {
+        "investigating": AlertStatusEnum.INVESTIGATING,
+        "false_alarm": AlertStatusEnum.FALSE_ALARM,
+        "confirmed_incident": AlertStatusEnum.CONFIRMED_INCIDENT,
+        "pending": AlertStatusEnum.PENDING
+    }
+    
+    new_status = status_map.get(status_update.status)
+    if not new_status:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid status"
+        )
+    
+    alert.status = new_status
+    alert.assigned_authority_id = current_authority.id
+    alert.updated_at = datetime.utcnow()
+    db.commit()
+    
+    return {"success": True, "new_status": status_update.status}

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useLanguage } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
-import {apiClient, getAPIBaseURL } from '../services/api';
+import { apiClient, getAPIBaseURL } from '../services/api';
 
 
 interface DisasterDetails {
@@ -61,7 +61,7 @@ export const VerificationScreen: React.FC<{ route: any; navigation: any }> = ({
 
     const handleVerify = async (isConfirmed: boolean) => {
         setSubmitting(true);
-        try {   
+        try {
             const api = await apiClient();
             await api.post(`/api/disasters/${disasterId}/verify`, {
                 is_confirmed: isConfirmed,
@@ -115,9 +115,9 @@ export const VerificationScreen: React.FC<{ route: any; navigation: any }> = ({
             <ScrollView style={styles.scrollView}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackButton}>
-                        <Text style={styles.headerBackButtonText}>← Back</Text>
+                        <Text style={styles.headerBackButtonText}>← {t('back')}</Text>
                     </TouchableOpacity>
-                    <Text style={styles.title}>Verify Disaster Report</Text>
+                    <Text style={styles.title}>{t('verify_disaster_report')}</Text>
                 </View>
 
                 {/* Disaster Image */}
@@ -132,12 +132,12 @@ export const VerificationScreen: React.FC<{ route: any; navigation: any }> = ({
                 {/* Disaster Details */}
                 <View style={styles.detailsCard}>
                     <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>📍 Location:</Text>
+                        <Text style={styles.detailLabel}>📍 {t('location')}:</Text>
                         <Text style={styles.detailValue}>{disaster.location_name}</Text>
                     </View>
 
                     <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>📏 Distance:</Text>
+                        <Text style={styles.detailLabel}>📏 {t('distance')}:</Text>
                         <Text style={styles.detailValue}>
                             {disaster.distance_km < 1
                                 ? `${Math.round(disaster.distance_km * 1000)}m away`
@@ -146,12 +146,12 @@ export const VerificationScreen: React.FC<{ route: any; navigation: any }> = ({
                     </View>
 
                     <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>⚠️ Severity:</Text>
+                        <Text style={styles.detailLabel}>⚠️ {t('severity')}:</Text>
                         <Text style={styles.detailValue}>{disaster.severity_level}/10</Text>
                     </View>
 
                     <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>🕐 Reported:</Text>
+                        <Text style={styles.detailLabel}>🕐 {t('reported')}:</Text>
                         <Text style={styles.detailValue}>
                             {new Date(disaster.created_at).toLocaleString()}
                         </Text>
@@ -159,7 +159,7 @@ export const VerificationScreen: React.FC<{ route: any; navigation: any }> = ({
 
                     {disaster.description && (
                         <View style={styles.descriptionContainer}>
-                            <Text style={styles.detailLabel}>📝 Description:</Text>
+                            <Text style={styles.detailLabel}>📝 {t('description')}:</Text>
                             <Text style={styles.descriptionText}>{disaster.description}</Text>
                         </View>
                     )}
@@ -167,9 +167,9 @@ export const VerificationScreen: React.FC<{ route: any; navigation: any }> = ({
 
                 {/* Question */}
                 <View style={styles.questionCard}>
-                    <Text style={styles.questionTitle}>🤔 Have you seen this disaster?</Text>
+                    <Text style={styles.questionTitle}>🤔 {t('have_you_seen_disaster')}</Text>
                     <Text style={styles.questionSubtitle}>
-                        Your response helps us verify this report and alert authorities.
+                        {t('verification_helps')}
                     </Text>
                 </View>
 
@@ -186,7 +186,7 @@ export const VerificationScreen: React.FC<{ route: any; navigation: any }> = ({
                             <>
                                 <Text style={styles.buttonIcon}>✅</Text>
                                 <Text style={styles.buttonText}>{t('yes')}</Text>
-                                <Text style={styles.buttonSubtext}>I confirm this disaster</Text>
+                                <Text style={styles.buttonSubtext}>{t('i_confirm_disaster')}</Text>
                             </>
                         )}
                     </TouchableOpacity>
@@ -202,7 +202,7 @@ export const VerificationScreen: React.FC<{ route: any; navigation: any }> = ({
                             <>
                                 <Text style={styles.buttonIcon}>❌</Text>
                                 <Text style={styles.buttonText}>{t('no')}</Text>
-                                <Text style={styles.buttonSubtext}>I haven't seen this</Text>
+                                <Text style={styles.buttonSubtext}>{t('i_havent_seen')}</Text>
                             </>
                         )}
                     </TouchableOpacity>

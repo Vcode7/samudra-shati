@@ -241,6 +241,15 @@ class DeviceLinkUser(BaseModel):
     device_id: str
 
 
+class HeartbeatUpdate(BaseModel):
+    """Schema for device heartbeat with location and status"""
+    device_id: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    battery_level: Optional[float] = None  # 0-100
+    network_status: Optional[str] = "online"  # online, offline
+
+
 class DeviceResponse(BaseModel):
     id: int
     device_id: str
@@ -409,3 +418,95 @@ class EvacuationDirectionResponse(BaseModel):
     crowd_confidence: Optional[float] = None  # 0-1 confidence score
     bearing_to_safe_area: Optional[float] = None  # Degrees to safe area
 
+
+# Early Warning Prediction Schemas (from disaster-prediction-service)
+class PredictionStatusEnum(str, Enum):
+    PENDING = "pending"
+    VERIFIED = "verified"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+
+
+class EarlyWarningCreate(BaseModel):
+    """Schema for creating early warning predictions from microservice"""
+    type: str  # COASTAL_STORM_RISK, FLOOD_RISK, CYCLONE_WATCH, etc.
+    latitude: float
+    longitude: float
+    severity: int = Field(..., ge=1, le=10)  # 1-10 scale
+    confidence: float = Field(..., ge=0.0, le=1.0)  # 0-1
+    source: List[str]  # ["open-meteo", "openweather"]
+    message: str  # Human-readable message
+    predicted_at: str  # ISO timestamp
+    valid_for_minutes: int = 360
+
+
+class EarlyWarningResponse(BaseModel):
+    """Response schema for early warning predictions"""
+    id: int
+    type: str
+    latitude: float
+    longitude: float
+    severity: int
+    confidence: float
+    source_apis: str  # JSON array as string
+    message: str
+    predicted_at: datetime
+    valid_for_minutes: int
+    status: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class EarlyWarningVerify(BaseModel):
+    """Schema for authority verifying/cancelling a prediction"""
+    action: str  # "verify" or "cancel"
+
+
+# Emergency Call Schemas
+class EmergencyCallCreate(BaseModel):
+    """Schema for initiating an emergency call"""
+    device_id: str
+    authority_id: int
+    latitude: float
+    longitude: float
+
+
+class EmergencyCallResponse(BaseModel):
+    """Response for nearest authority lookup"""
+    authority_id: int
+    organization_name: str
+    authority_type: str
+    contact_number: str
+    base_latitude: float
+    base_longitude: float
+    distance_km: float
+    
+    class Config:
+        from_attributes = True
+
+
+class EmergencyCallStopSharing(BaseModel):
+    """Schema for stopping location sharing during call"""
+    call_log_id: int
+
+
+# Region Disconnect Alert Schemas
+class RegionDisconnectAlertResponse(BaseModel):
+    """Response schema for region disconnect alerts"""
+    id: int
+    center_latitude: float
+    center_longitude: float
+    radius_km: float
+    affected_device_count: int
+    status: str
+    detected_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class RegionAlertStatusUpdate(BaseModel):
+    """Schema for authority updating disconnect alert status"""
+    status: str  # "investigating", "false_alarm", "confirmed_incident"

@@ -6,7 +6,8 @@ from typing import List
 from ..database import get_db
 from ..models import Device, User
 from ..schemas import (
-    DeviceRegister, DeviceLinkUser, DeviceResponse, DeviceStatsResponse
+    DeviceRegister, DeviceLinkUser, DeviceResponse, DeviceStatsResponse,
+    HeartbeatUpdate
 )
 from ..dependencies import get_current_user
 
@@ -101,24 +102,46 @@ async def link_device_to_user(
 
 @router.post("/heartbeat")
 async def device_heartbeat(
-    device_data: DeviceLinkUser,
+    heartbeat_data: HeartbeatUpdate,
     db: Session = Depends(get_db)
 ):
     """
-    Update device last seen timestamp.
-    Called periodically by app to keep device active.
+    Update device last seen timestamp with optional location and status.
+    Called periodically by app to keep device active and track last known location.
+    
+    This stores ONLY the last snapshot - not continuous tracking.
     """
     device = db.query(Device).filter(
-        Device.device_id == device_data.device_id
+        Device.device_id == heartbeat_data.device_id
     ).first()
     
     if device:
         device.last_seen = datetime.utcnow()
+        device.last_seen_at = datetime.utcnow()
         device.is_active = True
+        
+        # Update last known location if provided
+        if heartbeat_data.latitude is not None and heartbeat_data.longitude is not None:
+            device.last_latitude = heartbeat_data.latitude
+            device.last_longitude = heartbeat_data.longitude
+        
+        # Update battery level if provided
+        if heartbeat_data.battery_level is not None:
+            device.battery_level = heartbeat_data.battery_level
+        
+        # Update network status
+        if heartbeat_data.network_status:
+            device.network_status = heartbeat_data.network_status
+        
         db.commit()
-        return {"success": True, "message": "Heartbeat received"}
+        return {
+            "success": True, 
+            "message": "Heartbeat received",
+            "last_location_updated": heartbeat_data.latitude is not None
+        }
     
     return {"success": False, "message": "Device not found"}
+
 
 
 @router.get("/stats", response_model=DeviceStatsResponse)

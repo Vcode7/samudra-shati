@@ -15,7 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLanguage } from '../context/LanguageContext';
 import { vibrationService } from '../services/vibrationService';
 import { locationService } from '../services/locationService';
-import {apiClient} from '../services/api';
+import { apiClient } from '../services/api';
 
 export const UploadDisasterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const { t } = useLanguage();
@@ -41,7 +41,7 @@ export const UploadDisasterScreen: React.FC<{ navigation: any }> = ({ navigation
             }
         } catch (error) {
             console.error('Error getting location:', error);
-            Alert.alert(t('error'), 'Failed to get location');
+            Alert.alert(t('error'), t('failed_get_location'));
         } finally {
             setGettingLocation(false);
         }
@@ -54,7 +54,7 @@ export const UploadDisasterScreen: React.FC<{ navigation: any }> = ({ navigation
                 : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
             if (!permissionResult.granted) {
-                Alert.alert(t('error'), 'Permission denied');
+                Alert.alert(t('error'), t('permission_denied'));
                 return;
             }
 
@@ -78,19 +78,19 @@ export const UploadDisasterScreen: React.FC<{ navigation: any }> = ({ navigation
             }
         } catch (error) {
             console.error('Error picking image:', error);
-            Alert.alert(t('error'), 'Failed to pick image');
+            Alert.alert(t('error'), t('failed_pick_image'));
         }
     };
 
     const handleSubmit = async () => {
         if (!imageUri) {
-            Alert.alert(t('error'), 'Please select an image');
+            Alert.alert(t('error'), t('please_select_image'));
             vibrationService.error();
             return;
         }
 
         if (!location) {
-            Alert.alert(t('error'), 'Location not available');
+            Alert.alert(t('error'), t('location_not_available'));
             vibrationService.error();
             return;
         }
@@ -148,7 +148,7 @@ export const UploadDisasterScreen: React.FC<{ navigation: any }> = ({ navigation
             <ScrollView style={styles.scrollView}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Text style={styles.backButtonText}>← Back</Text>
+                        <Text style={styles.backButtonText}>← {t('back')}</Text>
                     </TouchableOpacity>
                     <Text style={styles.title}>{t('reportDisaster')}</Text>
                 </View>
@@ -163,7 +163,7 @@ export const UploadDisasterScreen: React.FC<{ navigation: any }> = ({ navigation
                                 style={styles.changeImageButton}
                                 onPress={() => setImageUri(null)}
                             >
-                                <Text style={styles.changeImageText}>Change Image</Text>
+                                <Text style={styles.changeImageText}>{t('change_image')}</Text>
                             </TouchableOpacity>
                         </View>
                     ) : (
@@ -191,7 +191,7 @@ export const UploadDisasterScreen: React.FC<{ navigation: any }> = ({ navigation
                     <Text style={styles.label}>{t('location')} *</Text>
                     <View style={styles.locationContainer}>
                         <Text style={styles.locationText}>
-                            {gettingLocation ? t('gettingLocation') : locationName || 'Location not available'}
+                            {gettingLocation ? t('gettingLocation') : locationName || t('location_not_available')}
                         </Text>
                         <TouchableOpacity
                             style={styles.refreshButton}
@@ -208,7 +208,7 @@ export const UploadDisasterScreen: React.FC<{ navigation: any }> = ({ navigation
                     <Text style={styles.label}>{t('description')}</Text>
                     <TextInput
                         style={styles.textArea}
-                        placeholder="Describe what you see..."
+                        placeholder={t('describe_placeholder')}
                         placeholderTextColor="#999"
                         value={description}
                         onChangeText={setDescription}

@@ -43,6 +43,7 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
 
     const loadLocation = async () => {
         const coords = await locationService.getCoordinates();
+        console.log('User location:', coords);
         if (coords) {
             setUserLocation(coords);
         }
@@ -80,12 +81,13 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
     };
 
     const getStatusColor = (status: string) => {
+        console.log('Status:', status);
         switch (status) {
-            case 'VERIFIED':
+            case 'verified':
                 return '#f44336';
-            case 'PENDING':
+            case 'pending':
                 return '#ff9800';
-            case 'FALSE_ALARM':
+            case 'false_alarm':
                 return '#999';
             default:
                 return '#4caf50';
@@ -97,9 +99,9 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
             case 'VERIFIED':
                 return 'Verified';
             case 'PENDING':
-                return 'Pending';
+                return t('pending');
             case 'FALSE_ALARM':
-                return 'False Alarm';
+                return t('false_alarm');
             default:
                 return status;
         }
@@ -115,7 +117,7 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
         const canVerify = item.status === 'PENDING' && isWithin30Min(item.created_at);
 
         let displayDistance = item.distance_km;
-        if (displayDistance === null && userLocation) {
+        if ((displayDistance === null || displayDistance === undefined) && userLocation) {
             displayDistance = locationService.calculateDistance(
                 userLocation.latitude,
                 userLocation.longitude,
@@ -142,7 +144,7 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
                             <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
                         </View>
                     </View>
-                    <Text style={styles.severityText}>Severity: {item.severity_level}/10</Text>
+                    <Text style={styles.severityText}>{t('severity')}: {item.severity_level}/10</Text>
                 </View>
 
                 <View style={styles.alertDetails}>
@@ -152,7 +154,7 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
                             : 'Unknown distance'}
                     </Text>
                     <Text style={styles.detailText}>
-                        ✅ {item.verification_count_yes + item.verification_count_no} verification{(item.verification_count_yes + item.verification_count_no) !== 1 ? 's' : ''}
+                         {item.verification_count_yes + item.verification_count_no} response{(item.verification_count_yes + item.verification_count_no) !== 1 ? 's' : ''}
                     </Text>
                 </View>
 

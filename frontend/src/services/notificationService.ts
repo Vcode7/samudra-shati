@@ -357,15 +357,46 @@ export const notificationService = {
     },
 
     /**
-     * Send heartbeat to keep device active
+     * Send heartbeat to keep device active with last known location
      */
     async sendHeartbeat(): Promise<void> {
         try {
             const deviceId = await this.getDeviceId();
             const api = await apiClient();
 
+            // Try to get current location (best-effort)
+            let latitude: number | undefined;
+            let longitude: number | undefined;
+            let batteryLevel: number | undefined;
+
+            try {
+                const coords = await locationService.getCoordinates();
+                if (coords) {
+                    latitude = coords.latitude;
+                    longitude = coords.longitude;
+                }
+            } catch (locError) {
+                // Location not available - that's okay for heartbeat
+                console.log('Location not available for heartbeat');
+            }
+
+            // Try to get battery level (if available)
+            try {
+                const { Battery } = require('expo-device');
+                if (Battery) {
+                    const batteryInfo = await Battery.getBatteryLevelAsync();
+                    batteryLevel = batteryInfo * 100; // Convert to 0-100
+                }
+            } catch (batteryError) {
+                // Battery info not available
+            }
+
             await api.post('/api/devices/heartbeat', {
-                device_id: deviceId
+                device_id: deviceId,
+                latitude,
+                longitude,
+                battery_level: batteryLevel,
+                network_status: 'online'
             });
         } catch (error) {
             // Silent fail for heartbeat

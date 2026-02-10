@@ -6,10 +6,13 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import os
+import logging
+logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
+
 
 from .config import settings
 from .database import init_db
-from .routes import users, authorities, disasters, devices, admin, locations, safe_areas, evacuation, service_centers, notifications, zones
+from .routes import users, authorities, disasters, devices, admin, locations, safe_areas, evacuation, service_centers, notifications, zones, predictions
 
 # Create FastAPI app
 app = FastAPI(
@@ -19,9 +22,6 @@ app = FastAPI(
     docs_url="/api/docs",
     redoc_url="/api/redoc"
 )
-import logging
-logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
-
 
 # Rate limiting
 limiter = Limiter(key_func=get_remote_address)
@@ -53,6 +53,7 @@ app.include_router(evacuation.router)
 app.include_router(service_centers.router)
 app.include_router(notifications.router)
 app.include_router(zones.router)
+app.include_router(predictions.router)
 
 
 @app.on_event("startup")
