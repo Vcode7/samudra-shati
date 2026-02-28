@@ -99,15 +99,15 @@ async def create_disaster_report(
                 messages = {
                     "en": {
                         "title": "🚨 EMERGENCY ALERT",
-                        "body": f"VERIFIED DISASTER near {disaster.location_name}! Community confirmed ({disaster.verification_count_yes} people). If you are nearby, evacuate immediately!"
+                        "body": f"VERIFIED DISASTER near {existing_disaster.location_name}! Community confirmed ({existing_disaster.verification_count_yes} people). If you are nearby, evacuate immediately!"
                     },
                     "hi": {
                         "title": "🚨 आपातकालीन अलर्ट",
-                        "body": f"{disaster.location_name} के पास सत्यापित आपदा! समुदाय द्वारा पुष्टि ({disaster.verification_count_yes} लोग)। यदि आप पास में हैं, तुरंत निकासी करें!"
+                        "body": f"{existing_disaster.location_name} के पास सत्यापित आपदा! समुदाय द्वारा पुष्टि ({existing_disaster.verification_count_yes} लोग)। यदि आप पास में हैं, तुरंत निकासी करें!"
                     },
                     "ta": {
                         "title": "🚨 அவசர எச்சரிக்கை",
-                        "body": f"{disaster.location_name} அருகில் சரிபார்க்கப்பட்ட பேரிடர்! சமூகம் உறுதிப்படுத்தியது. நீங்கள் அருகில் இருந்தால், உடனடியாக வெளியேறுங்கள்!"
+                        "body": f"{existing_disaster.location_name} அருகில் சரிபார்க்கப்பட்ட பேரிடர்! சமூகம் உறுதிப்படுத்தியது. நீங்கள் அருகில் இருந்தால், உடனடியாக வெளியேறுங்கள்!"
                     }
                 }
                 
@@ -117,12 +117,12 @@ async def create_disaster_report(
                     body=messages["en"]["body"],
                     data={
                         "type": "emergency_active",
-                        "disaster_id": disaster.id,
-                        "latitude": disaster.latitude,
-                        "longitude": disaster.longitude,
-                        "danger_radius_km": disaster.danger_radius_km,
-                        "severity": disaster.severity_level,
-                        "location": disaster.location_name,
+                        "disaster_id": existing_disaster.id,
+                        "latitude": existing_disaster.latitude,
+                        "longitude": existing_disaster.longitude,
+                        "danger_radius_km": existing_disaster.danger_radius_km,
+                        "severity": existing_disaster.severity_level,
+                        "location": existing_disaster.location_name,
                         "messages": messages
                     },
                     priority="high"

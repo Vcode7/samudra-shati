@@ -24,8 +24,7 @@ import { EmergencyCameraScreen } from './src/screens/EmergencyCameraScreen';
 import { shakeDetectionService } from './src/services/shakeDetectionService';
 import { navigationRef } from './src/services/navigationService';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { initApi } from './src/services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage'; import { initApi } from './src/services/api';
 
 const Stack = createStackNavigator();
 

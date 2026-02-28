@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from ..models import OTPStore
 from ..config import settings
-
+from twilio.rest import Client
 
 class OTPService:
     """
@@ -23,25 +23,16 @@ class OTPService:
     
     @staticmethod
     def send_otp(phone_number: str, db: Session) -> dict:
-        """
-        Generate and 'send' OTP to phone number
-        
-        In production, this would call an SMS API
-        For now, we just store it and log it
-        """
-        # Generate OTP
         otp_code = OTPService.generate_otp()
-        print(f"Generated OTP: {otp_code}")
-        # Calculate expiry
         expires_at = datetime.utcnow() + timedelta(minutes=settings.OTP_EXPIRY_MINUTES)
-        
-        # Invalidate any existing OTPs for this number
+
+        # Invalidate old OTPs
         db.query(OTPStore).filter(
             OTPStore.phone_number == phone_number,
             OTPStore.is_used == False
         ).update({"is_used": True})
-        
-        # Store new OTP
+
+        # Save OTP
         otp_record = OTPStore(
             phone_number=phone_number,
             otp_code=otp_code,
@@ -49,27 +40,31 @@ class OTPService:
         )
         db.add(otp_record)
         db.commit()
-        
-        # TODO: Send actual SMS here
-        # Example: twilio_client.messages.create(to=phone_number, body=f"Your OTP is: {otp_code}")
-        
-        # For development, log to console
-        print(f"\n{'='*50}")
-        print(f"📱 MOCK SMS SERVICE")
-        print(f"{'='*50}")
-        print(f"To: {phone_number}")
-        print(f"OTP: {otp_code}")
-        print(f"Expires: {expires_at.strftime('%Y-%m-%d %H:%M:%S')} UTC")
-        print(f"{'='*50}\n")
+
+        # if settings.DEBUG:
+        #     print(f"Generated OTP: {otp_code}")
+        # === REAL SMS SEND (Twilio) ===
+        # if settings.DEBUG:
+        #     print(f"[DEV OTP] {phone_number} -> {otp_code}")
+        #     return {
+        #         "success": True,
+        #         "message": "OTP generated (dev mode)",
+        #         "expires_in_minutes": settings.OTP_EXPIRY_MINUTES
+        #     }
+        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+
+        message = client.messages.create(
+            to=phone_number,
+            from_=settings.TWILIO_PHONE_NUMBER,
+            body=f"Your Sankat Saathi OTP is {otp_code}. Valid for {settings.OTP_EXPIRY_MINUTES} minutes."
+        )
         
         return {
             "success": True,
             "message": "OTP sent successfully",
-            "expires_in_minutes": settings.OTP_EXPIRY_MINUTES,
-            # In production, don't return OTP in response
-            "otp_code": otp_code if settings.DEBUG else None
+            "expires_in_minutes": settings.OTP_EXPIRY_MINUTES
         }
-    
+
     @staticmethod
     def verify_otp(phone_number: str, otp_code: str, db: Session) -> bool:
         """

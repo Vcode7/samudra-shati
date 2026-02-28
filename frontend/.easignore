@@ -6,6 +6,7 @@ android/local.properties
 .expo
 .expo-shared
 .git
+
 .gitignore
 backend
 venv

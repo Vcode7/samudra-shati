@@ -1,12 +1,36 @@
 import * as Speech from 'expo-speech';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-type LanguageCode = 'en' | 'hi' | 'ta';
+type LanguageCode = 'en' | 'hi' | 'ta' | 'te' | 'kn' | 'ml' | 'mr' | 'bn' | 'gu' | 'or' | 'pa' | 'as' | 'ur' | 'kok' | 'sd' | 'ne' | 'ks' | 'mni' | 'bho' | 'sat' | 'mai' | 'dog' | 'brx' | 'raj' | 'tcy' | 'be' | 'hi-en';
 
 const LANGUAGE_VOICES: Record<LanguageCode, string> = {
     en: 'en-IN',
     hi: 'hi-IN',
     ta: 'ta-IN',
+    te: 'te-IN',
+    kn: 'kn-IN',
+    ml: 'ml-IN',
+    mr: 'mr-IN',
+    bn: 'bn-IN',
+    gu: 'gu-IN',
+    or: 'or-IN',
+    pa: 'pa-IN',
+    as: 'as-IN',
+    ur: 'ur-IN',
+    kok: 'kok-IN',
+    sd: 'sd-IN',
+    ne: 'ne-IN',
+    ks: 'ks-IN',
+    mni: 'mni-IN',
+    bho: 'bho-IN',
+    sat: 'sat-IN',
+    mai: 'mai-IN',
+    dog: 'dog-IN',
+    brx: 'brx-IN',
+    raj: 'raj-IN',
+    tcy: 'tcy-IN',
+    be: 'be-IN',
+    'hi-en': 'hi-IN',
 };
 
 export const voiceService = {

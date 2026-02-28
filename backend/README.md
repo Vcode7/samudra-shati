@@ -1,4 +1,4 @@
-# samudra saathi - Backend API
+# Sankat saathi - Backend API
 
 FastAPI backend for the disaster alert and reporting system.
 

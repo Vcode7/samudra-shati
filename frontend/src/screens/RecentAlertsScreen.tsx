@@ -27,9 +27,22 @@ interface DisasterAlert {
     verification_count_no: number;
 }
 
+interface AIPrediction {
+    id: number;
+    type: string;
+    latitude: number;
+    longitude: number;
+    severity: number;
+    confidence: number;
+    message: string;
+    predicted_at: string;
+    status: string;
+}
+
 export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const { t } = useLanguage();
     const [alerts, setAlerts] = useState<DisasterAlert[]>([]);
+    const [predictions, setPredictions] = useState<AIPrediction[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [page, setPage] = useState(1);
@@ -39,6 +52,7 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
     useEffect(() => {
         loadLocation();
         loadAlerts();
+        loadPredictions();
     }, []);
 
     const loadLocation = async () => {
@@ -68,10 +82,21 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
         }
     };
 
+    const loadPredictions = async () => {
+        try {
+            const api = await apiClient();
+            const response = await api.get('/api/predictions/active');
+            setPredictions(response.data);
+        } catch (error) {
+            console.error('Error loading AI predictions:', error);
+        }
+    };
+
     const handleRefresh = () => {
         setRefreshing(true);
         loadLocation();
         loadAlerts(1);
+        loadPredictions();
     };
 
     const handleLoadMore = () => {
@@ -154,7 +179,7 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
                             : 'Unknown distance'}
                     </Text>
                     <Text style={styles.detailText}>
-                         {item.verification_count_yes + item.verification_count_no} response{(item.verification_count_yes + item.verification_count_no) !== 1 ? 's' : ''}
+                        {item.verification_count_yes + item.verification_count_no} response{(item.verification_count_yes + item.verification_count_no) !== 1 ? 's' : ''}
                     </Text>
                 </View>
 
@@ -172,6 +197,28 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
             </TouchableOpacity>
         );
     };
+
+    const renderPrediction = (pred: AIPrediction) => (
+        <View key={pred.id} style={styles.aiPredictionCard}>
+            <View style={styles.aiHeader}>
+                <Text style={styles.aiType}>
+                    {pred.type.replace(/_/g, ' ').toUpperCase()}
+                </Text>
+                <View style={styles.confidenceBadge}>
+                    <Text style={styles.confidenceText}>
+                        {Math.round(pred.confidence * 100)}%
+                    </Text>
+                </View>
+            </View>
+            <Text style={styles.aiMessage}>{pred.message}</Text>
+            <View style={styles.aiFooter}>
+                <Text style={styles.aiSeverity}>⚠️ Severity: {pred.severity}/10</Text>
+                <Text style={styles.aiTime}>
+                    {new Date(pred.predicted_at).toLocaleTimeString()}
+                </Text>
+            </View>
+        </View>
+    );
 
     if (loading && alerts.length === 0) {
         return (
@@ -198,6 +245,14 @@ export const RecentAlertsScreen: React.FC<{ navigation: any }> = ({ navigation }
                 renderItem={renderAlert}
                 keyExtractor={(item) => item.id.toString()}
                 contentContainerStyle={styles.listContent}
+                ListHeaderComponent={
+                    predictions.length > 0 ? (
+                        <View style={styles.aiSection}>
+                            <Text style={styles.aiSectionTitle}>🤖 AI Early Warnings</Text>
+                            {predictions.map(renderPrediction)}
+                        </View>
+                    ) : null
+                }
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
                 }
@@ -262,4 +317,71 @@ const styles = StyleSheet.create({
     emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
     emptyText: { fontSize: 16, color: '#999' },
     footerLoader: { paddingVertical: 20, alignItems: 'center' },
+    // AI Prediction Styles
+    aiSection: {
+        backgroundColor: '#fff',
+        marginHorizontal: 16,
+        marginTop: 16,
+        borderRadius: 12,
+        padding: 16,
+        borderLeftWidth: 4,
+        borderLeftColor: '#9c27b0',
+    },
+    aiSectionTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#9c27b0',
+        marginBottom: 12,
+    },
+    aiPredictionCard: {
+        backgroundColor: '#f3e5f5',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#ce93d8',
+    },
+    aiHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    aiType: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#6a1b9a',
+        flex: 1,
+    },
+    confidenceBadge: {
+        backgroundColor: '#9c27b0',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    confidenceText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: '#fff',
+    },
+    aiMessage: {
+        fontSize: 13,
+        color: '#333',
+        marginBottom: 8,
+        lineHeight: 18,
+    },
+    aiFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    aiSeverity: {
+        fontSize: 12,
+        color: '#d32f2f',
+        fontWeight: '600',
+    },
+    aiTime: {
+        fontSize: 11,
+        color: '#666',
+    },
 });

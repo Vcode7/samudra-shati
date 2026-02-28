@@ -36,7 +36,7 @@ async def request_otp(
     
     # Send OTP
     result = OTPService.send_otp(phone_number, db)
-    
+    print(result)
     return OTPResponse(**result)
 
 

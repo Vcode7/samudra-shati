@@ -182,6 +182,8 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                         <Text style={styles.actionButtonText}>{t('testAlert')}</Text>
                     </TouchableOpacity>
 
+
+
                     <TouchableOpacity
                         style={[styles.actionButton, { backgroundColor: '#ff9800' }]}
                         onPress={handleTestBroadcast}
@@ -232,7 +234,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
                 {/* App Info */}
                 <View style={styles.footer}>
-                    <Text style={styles.footerText}>🌊 samudra saathi v1.0.0</Text>
+                    <Text style={styles.footerText}>🌊 Sankat saathi v1.0.0</Text>
                     <Text style={styles.footerSubtext}>Ocean Alert System</Text>
                 </View>
             </ScrollView>

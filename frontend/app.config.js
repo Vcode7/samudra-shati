@@ -1,6 +1,6 @@
 export default {
   expo: {
-    name: "samudra saathi",
+    name: "Sankat saathi",
     slug: "samudar-shati",
     version: "1.0.0",
     orientation: "portrait",
@@ -55,7 +55,7 @@ export default {
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission":
-            "Allow samudra saathi to use your location to show nearby disasters."
+            "Allow Sankat saathi to use your location to show nearby disasters."
         }
       ],
       [

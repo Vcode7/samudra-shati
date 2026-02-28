@@ -12,7 +12,7 @@ An independent microservice that predicts coastal disasters using real-time weat
   - `CYCLONE_WATCH` - Low pressure + strong winds
   - `HEATWAVE_RISK` - Extreme heat + humidity
   - `HIGH_WAVE_ALERT` - Very high waves
-- **Backend Integration**: Sends predictions to main Samudra Saathi backend
+- **Backend Integration**: Sends predictions to main Sankat Saathi backend
 - **Multi-Location Support**: Monitor multiple coastal points
 
 ## 🔌 Data Sources
@@ -156,7 +156,7 @@ The service automatically sends predictions to:
 POST http://localhost:8000/api/predictions/early-warning
 ```
 
-Make sure the main Samudra Saathi backend is running on port 8000.
+Make sure the main Sankat Saathi backend is running on port 8000.
 
 ## 🐛 Troubleshooting
 
@@ -206,4 +206,4 @@ disaster-prediction-service/
 
 ## 📄 License
 
-Part of the Samudra Saathi project.
+Part of the Sankat Saathi project.

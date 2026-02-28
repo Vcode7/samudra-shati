@@ -4,10 +4,10 @@ from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime
 from typing import List, Dict
 
-from .config import settings
-from .services.weather_client import WeatherClient
-from .services.marine_client import MarineClient
-from .services.predictor import DisasterPredictor
+from config import settings
+from services.weather_client import WeatherClient
+from services.marine_client import MarineClient
+from services.predictor import DisasterPredictor
 
 
 class PredictionScheduler:
@@ -44,15 +44,37 @@ class PredictionScheduler:
             marine_data = await self.marine_client.get_marine_forecast(lat, lon)
             forecast_data = await self.weather_client.get_forecast(lat, lon)
             
+           # Safe weather logging
             if weather_data:
-                print(f"    Weather: {weather_data['temp']:.1f}°C, {weather_data['wind_speed']:.0f} km/h wind, {weather_data['pressure']:.0f} hPa")
-            
+                temp = weather_data.get("temp")
+                wind = weather_data.get("wind_speed")
+                pressure = weather_data.get("pressure")
+
+                print(
+                    f"    Weather: "
+                    f"{f'{temp:.1f}°C' if temp is not None else 'N/A'}, "
+                    f"{f'{wind:.0f} km/h wind' if wind is not None else 'N/A wind'}, "
+                    f"{f'{pressure:.0f} hPa' if pressure is not None else 'N/A pressure'}"
+                )
+
+            # Safe marine logging
             if marine_data:
-                print(f"    Marine: {marine_data['wave_height']:.1f}m waves")
-            
+                wave_height = marine_data.get("wave_height")
+                print(
+                    f"    Marine: {wave_height:.1f}m waves"
+                    if wave_height is not None
+                    else "    Marine: No wave data available"
+                )
+
+            # Safe forecast logging
             if forecast_data:
-                print(f"    Forecast: {forecast_data['total_rain_24h']:.0f}mm rain in 24h")
-            
+                rain_24h = forecast_data.get("total_rain_24h")
+                print(
+                    f"    Forecast: {rain_24h:.0f}mm rain in 24h"
+                    if rain_24h is not None
+                    else "    Forecast: No rain data available"
+                )
+
             # Run prediction analysis
             predictions = self.predictor.analyze(
                 weather_data=weather_data,

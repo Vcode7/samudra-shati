@@ -9,7 +9,7 @@ from config import Config
 
 class BackendClient:
     """
-    Client for communicating with the samudra saathi backend API.
+    Client for communicating with the Sankat saathi backend API.
     """
     
     @staticmethod

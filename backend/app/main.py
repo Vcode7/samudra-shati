@@ -16,7 +16,7 @@ from .routes import users, authorities, disasters, devices, admin, locations, sa
 
 # Create FastAPI app
 app = FastAPI(
-    title="samudra saathi API",
+    title="Sankat saathi API",
     description="Disaster Alert and Reporting System for Coastal Areas",
     version="1.0.0",
     docs_url="/api/docs",
@@ -31,7 +31,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:8000", "http://localhost:8080", "http://localhost:8081", "https://*.ngrok-free.app"],
+    allow_origins=["http://10.105.242.247:3000","http://localhost:3000", "http://localhost:5173", "http://localhost:8000", "http://localhost:8080", "http://localhost:8081", "https://*.ngrok-free.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -69,7 +69,7 @@ async def startup_event():
 async def root():
     """Root endpoint"""
     return {
-        "message": "samudra saathi API",
+        "message": "Sankat saathi API",
         "version": "1.0.0",
         "docs": "/api/docs"
     }

@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
-from .config import settings
-from .scheduler import prediction_scheduler
+from config import settings
+from scheduler import prediction_scheduler
 
 
 # Create FastAPI app
@@ -147,6 +147,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8001,
+        port=8002,
         reload=settings.DEBUG
     )

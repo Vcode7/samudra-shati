@@ -1,13 +1,17 @@
-from pydantic_settings import BaseSettings
-from typing import List
-
+from pydantic_settings import BaseSettings,SettingsConfigDict
+from typing import List,Optional
+import os
 
 class Settings(BaseSettings):
     """Application configuration settings"""
     
     # Database
     DATABASE_URL: str = "sqlite:///./samudar_shati.db"
-    
+    TWILIO_ACCOUNT_SID: Optional[str] = None
+    TWILIO_AUTH_TOKEN: Optional[str] = None
+    TWILIO_PHONE_NUMBER: Optional[str] = None
+    TWILIO_WHATSAPP_NUMBER: Optional[str] = None
+
     # JWT
     SECRET_KEY: str = "dev-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
@@ -33,9 +37,10 @@ class Settings(BaseSettings):
         """Parse ALLOWED_ORIGINS into a list"""
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True
+    )
 
 
 settings = Settings()

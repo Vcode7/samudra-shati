@@ -4,16 +4,26 @@ import { Platform } from 'react-native';
 
 const CONFIG_URL = 'https://vcode7.github.io/middelware-endpoint/url.json';
 
-let API_BASE_URL: string | null = "https://98b9-2409-40f2-140-e677-a1df-507b-62bf-b960.ngrok-free.app";
+let API_BASE_URL: string | null = null;
 let api: ReturnType<typeof axios.create> | null = null;
+let lastLoadedAt: number | null = null;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 export async function loadApiBaseUrl() {
-  if (!API_BASE_URL) {
-    const res = await fetch(CONFIG_URL);
-    const json = await res.json();
-    console.log('Loaded API_BASE_URL:', json);
-    API_BASE_URL = json.API_BASE_URL;
-    console.log('Loaded API_BASE_URL:', API_BASE_URL);
+  const now = Date.now();
+  if (!API_BASE_URL || !lastLoadedAt || now - lastLoadedAt > CACHE_TTL_MS) {
+    try {
+      const res = await fetch(CONFIG_URL, { cache: 'no-store' });
+      const json = await res.json();
+
+      API_BASE_URL = json.API_BASE_URL;
+      lastLoadedAt = now;
+
+      console.log('🔁 Refreshed API_BASE_URL:', API_BASE_URL);
+    } catch (e) {
+      console.warn('⚠️ Failed to refresh API_BASE_URL, using last value:', API_BASE_URL);
+      if (!API_BASE_URL) throw e; // first load must succeed
+    }
   }
   return API_BASE_URL!;
 }
